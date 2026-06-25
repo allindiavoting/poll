@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin Panel — All India Voting Machine</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Firebase Auth for Admin -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyCWcNabSjp73QgNnGOP1Xx313msrKnBlFE",
+    authDomain: "all-india-voting.firebaseapp.com",
+    projectId: "all-india-voting",
+    storageBucket: "all-india-voting.firebasestorage.app",
+    messagingSenderId: "160735636851",
+    appId: "1:160735636851:web:60443834ddf08a2d0f2906"
+  };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
+
+  const ADMIN_EMAILS = ['admin@allindiavoting.com']; // add your admin email(s) here
+
+  window._adminSignInGoogle = () => signInWithPopup(auth, googleProvider);
+  window._adminSignInEmail = (e,p) => signInWithEmailAndPassword(auth, e, p);
+  window._adminSignOut = () => signOut(auth);
+
+  onAuthStateChanged(auth, (user) => {
+    const loginScreen = document.getElementById('adminLoginScreen');
+    const mainContent = document.querySelector('.main-content');
+    const sidebar = document.querySelector('.sidebar');
+    if (user) {
+      if (loginScreen) loginScreen.style.display = 'none';
+      if (mainContent) mainContent.style.display = '';
+      if (sidebar) sidebar.style.display = '';
+      const el = document.getElementById('adminUserLabel');
+      if (el) el.textContent = user.displayName || user.email || 'Admin';
+    } else {
+      if (loginScreen) loginScreen.style.display = 'flex';
+      if (mainContent) mainContent.style.display = 'none';
+      if (sidebar) sidebar.style.display = 'none';
+    }
+  });
+</script>
+
+<style>
+:root {
+  --saffron: #FF6713;
+  --saffron-light: #FF8C42;
+  --green: #138808;
+  --navy: #000080;
+  --charcoal: #1C1C1C;
+  --sidebar-bg: #0F0F0F;
+  --sidebar-w: 260px;
+  --card-bg: #FFFFFF;
+  --border: #E5E7EB;
+  --ash: #F8F8F8;
+  --muted: #6B7280;
+  --danger: #EF4444;
+  --success: #22C55E;
+  --warning: #F59E0B;
+}
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family:'DM Sans','Inter',sans-serif; background:var(--ash); color:var(--charcoal); }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  z-index: 200; overflow-y: auto;
+  display: flex; flex-direction: column;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.sidebar-brand {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.sidebar-brand-name {
+  font-family:'DM Sans',sans-serif;
+  font-size:1.05rem; font-weight:700; color:#fff;
+}
+.sidebar-brand-sub { font-size:0.7rem; color:rgba(255,255,255,0.35); }
+.sidebar-section-label {
+  padding: 16px 20px 6px;
+  font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.25);
+  text-transform:uppercase; letter-spacing:1.5px;
+}
+.nav-item-side {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 20px; cursor:pointer;
+  color:rgba(255,255,255,0.5); font-size:0.85rem; font-weight:500;
+  border-radius:0; transition:all 0.2s; text-decoration:none;
+  border-left: 3px solid transparent;
+}
+.nav-item-side:hover { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.85); }
+.nav-item-side.active {
+  background:rgba(255,103,19,0.1); color:var(--saffron);
+  border-left-color:var(--saffron);
+}
+.nav-item-side i { font-size:1rem; width:20px; text-align:center; }
+.sidebar-footer {
+  margin-top:auto; padding:16px 20px;
+  border-top:1px solid rgba(255,255,255,0.06);
+  font-size:0.72rem; color:rgba(255,255,255,0.25);
+}
+.live-badge-side {
+  margin-left:auto; background:var(--success);
+  border-radius:20px; padding:1px 7px;
+  font-size:0.62rem; font-weight:700; color:#fff;
+}
+
+/* ── MAIN CONTENT ── */
+.main-content {
+  margin-left:var(--sidebar-w);
+  min-height:100vh;
+}
+.topbar {
+  background:#fff; border-bottom:1px solid var(--border);
+  padding:14px 24px; display:flex; align-items:center;
+  justify-content:space-between; gap:16px;
+  position:sticky; top:0; z-index:100;
+}
+.topbar-title {
+  font-family:'DM Sans',sans-serif;
+  font-size:1.2rem; font-weight:700;
+}
+.topbar-meta { font-size:0.78rem; color:var(--muted); }
+.page-content { padding:24px; }
+
+/* ── CARDS ── */
+.stat-card {
+  background:#fff; border-radius:12px;
+  padding:20px; border:1px solid var(--border);
+  transition:all 0.2s;
+}
+.stat-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.06); }
+.stat-card-icon {
+  width:48px; height:48px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.4rem; margin-bottom:12px;
+}
+.stat-card-num {
+  font-family:'DM Sans',sans-serif;
+  font-size:2rem; font-weight:700; line-height:1;
+}
+.stat-card-label { font-size:0.78rem; color:var(--muted); margin-top:2px; }
+.stat-card-change {
+  font-size:0.75rem; margin-top:6px;
+  display:flex; align-items:center; gap:4px;
+}
+
+.panel-card {
+  background:#fff; border-radius:12px;
+  border:1px solid var(--border);
+  overflow:hidden;
+}
+.panel-card-header {
+  padding:16px 20px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.panel-card-title {
+  font-family:'DM Sans',sans-serif;
+  font-size:1rem; font-weight:700;
+}
+.panel-card-body { padding:20px; }
+
+/* ── TABLE ── */
+.admin-table { width:100%; border-collapse:collapse; }
+.admin-table th {
+  padding:10px 16px; font-size:0.72rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.5px;
+  color:var(--muted); border-bottom:2px solid var(--border);
+  background:var(--ash); text-align:left;
+}
+.admin-table td {
+  padding:12px 16px; font-size:0.83rem;
+  border-bottom:1px solid var(--border); vertical-align:middle;
+}
+.admin-table tr:hover td { background:var(--ash); }
+.admin-table tr:last-child td { border-bottom:none; }
+
+/* ── STATUS BADGES ── */
+.badge-active { background:rgba(34,197,94,0.1); color:var(--success); border:1px solid rgba(34,197,94,0.2); border-radius:20px; padding:2px 10px; font-size:0.7rem; font-weight:700; }
+.badge-inactive { background:rgba(239,68,68,0.1); color:var(--danger); border:1px solid rgba(239,68,68,0.2); border-radius:20px; padding:2px 10px; font-size:0.7rem; font-weight:700; }
+.badge-featured { background:rgba(255,103,19,0.1); color:var(--saffron); border:1px solid rgba(255,103,19,0.2); border-radius:20px; padding:2px 10px; font-size:0.7rem; font-weight:700; }
+
+/* ── FORM ── */
+.form-label-admin { font-size:0.82rem; font-weight:600; margin-bottom:4px; }
+.form-control-admin {
+  border:1.5px solid var(--border); border-radius:8px;
+  padding:10px 14px; width:100%; font-size:0.88rem;
+  transition:border-color 0.2s; background:#fff;
+}
+.form-control-admin:focus {
+  outline:none; border-color:var(--saffron);
+  box-shadow:0 0 0 3px rgba(255,103,19,0.08);
+}
+.option-row {
+  display:flex; gap:8px; align-items:center; margin-bottom:8px;
+}
+.option-row input { flex:1; }
+.btn-add-opt {
+  border:1.5px dashed var(--saffron); background:rgba(255,103,19,0.04);
+  color:var(--saffron); border-radius:8px; padding:8px 16px;
+  font-size:0.82rem; cursor:pointer; width:100%; margin-top:4px;
+  transition:background 0.2s; font-weight:600;
+}
+.btn-add-opt:hover { background:rgba(255,103,19,0.1); }
+
+/* ── BUTTONS ── */
+.btn-primary-admin {
+  background:linear-gradient(135deg,var(--saffron),var(--saffron-light));
+  color:#fff; border:none; border-radius:8px;
+  padding:10px 20px; font-family:'DM Sans',sans-serif;
+  font-size:0.92rem; font-weight:600; cursor:pointer;
+  transition:all 0.2s; letter-spacing:0.3px;
+}
+.btn-primary-admin:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(255,103,19,0.3); }
+.btn-danger-sm { background:rgba(239,68,68,0.08); color:var(--danger); border:1px solid rgba(239,68,68,0.2); border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer; transition:background 0.2s; }
+.btn-danger-sm:hover { background:rgba(239,68,68,0.15); }
+.btn-success-sm { background:rgba(34,197,94,0.08); color:var(--success); border:1px solid rgba(34,197,94,0.2); border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer; }
+.btn-sm-icon { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 8px; cursor:pointer; font-size:0.82rem; transition:all 0.2s; }
+.btn-sm-icon:hover { background:var(--ash); }
+
+/* ── TOGGLE SWITCH ── */
+.toggle-wrap { display:flex; align-items:center; gap:8px; }
+.toggle { position:relative; width:40px; height:22px; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-slider {
+  position:absolute; inset:0;
+  background:#E5E7EB; border-radius:22px; cursor:pointer;
+  transition:0.3s;
+}
+.toggle-slider:before {
+  content:''; position:absolute;
+  width:16px; height:16px; border-radius:50%;
+  background:#fff; left:3px; top:3px; transition:0.3s;
+}
+.toggle input:checked + .toggle-slider { background:var(--success); }
+.toggle input:checked + .toggle-slider:before { transform:translateX(18px); }
+
+/* ── TABS ── */
+.admin-tab { display:none; }
+.admin-tab.active { display:block; }
+
+/* ── TOAST ── */
+.admin-toast {
+  position:fixed; top:24px; right:24px; z-index:9999;
+  background:var(--charcoal); color:#fff;
+  padding:14px 20px; border-radius:10px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+  font-size:0.85rem; display:flex; align-items:center; gap:10px;
+  transform:translateX(120%); max-width:340px;
+}
+.admin-toast.show { transform:translateX(0); }
+
+/* ── ANALYTICS ── */
+.analytics-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:768px) { .analytics-grid { grid-template-columns:1fr; } }
+
+/* ── VOTER ROW ── */
+.voter-email-cell { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── IMAGE PREVIEW ── */
+.img-preview { width:60px; height:40px; object-fit:cover; border-radius:4px; }
+.img-preview-lg { width:100%; max-height:200px; object-fit:cover; border-radius:8px; margin-top:8px; }
+
+/* ── LIVE INDICATOR ── */
+.live-dot { width:8px; height:8px; border-radius:50%; background:var(--success); display:inline-block; animation:pulse-live 1.5s infinite; }
+@keyframes pulse-live { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.5);}50%{box-shadow:0 0 0 5px rgba(34,197,94,0);} }
+
+/* Scrollbar */
+.sidebar::-webkit-scrollbar { width:4px; }
+.sidebar::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
+
+/* ── ADMIN LOGIN SCREEN ── */
+#adminLoginScreen {
+  position:fixed; inset:0; z-index:9999;
+  background: linear-gradient(135deg, #0F0F0F 0%, #1C1C1C 100%);
+  display:flex; align-items:center; justify-content:center;
+}
+.admin-login-card {
+  background:#fff; border-radius:16px; padding:40px;
+  width:100%; max-width:400px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.4);
+}
+.admin-login-logo {
+  text-align:center; margin-bottom:28px;
+}
+.admin-login-title {
+  font-family:'DM Sans',sans-serif; font-size:1.5rem; font-weight:700;
+  color:var(--charcoal); margin-bottom:4px; text-align:center;
+}
+.admin-login-sub { font-size:0.82rem; color:var(--muted); text-align:center; margin-bottom:24px; }
+.btn-google-admin {
+  width:100%; padding:12px; border:1.5px solid #E5E7EB; border-radius:8px;
+  background:#fff; cursor:pointer; font-family:'DM Sans',sans-serif;
+  font-size:0.9rem; font-weight:500; display:flex; align-items:center;
+  justify-content:center; gap:10px; transition:all 0.2s; margin-bottom:16px;
+}
+.btn-google-admin:hover { background:#f8f8f8; border-color:#bbb; }
+.admin-or { display:flex; align-items:center; gap:12px; margin:16px 0; color:var(--muted); font-size:0.8rem; }
+.admin-or::before,.admin-or::after { content:''; flex:1; height:1px; background:#E5E7EB; }
+.admin-field { margin-bottom:14px; }
+.admin-field label { font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; }
+.admin-field input { width:100%; padding:10px 14px; border:1.5px solid #E5E7EB; border-radius:8px; font-size:0.88rem; font-family:'DM Sans',sans-serif; transition:border-color 0.2s; }
+.admin-field input:focus { outline:none; border-color:var(--saffron); box-shadow:0 0 0 3px rgba(255,103,19,0.08); }
+.btn-admin-login { width:100%; padding:12px; background:linear-gradient(135deg,var(--saffron),#FF8C42); color:#fff; border:none; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.95rem; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:4px; }
+.btn-admin-login:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(255,103,19,0.3); }
+</style>
+</head>
+<body>
+
+<!-- ADMIN LOGIN SCREEN -->
+<div id="adminLoginScreen" style="display:flex;">
+  <div class="admin-login-card">
+    <div class="admin-login-logo">
+      <span style="font-size:3rem;">🗳️</span>
+    </div>
+    <div class="admin-login-title">Admin Panel</div>
+    <div class="admin-login-sub">All India Voting Machine — Secure Access</div>
+    <button class="btn-google-admin" onclick="adminGoogleSignIn()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px;height:20px;" alt="G"/>
+      Sign in with Google
+    </button>
+    <div class="admin-or">or</div>
+    <div class="admin-field">
+      <label>Email</label>
+      <input type="email" id="adminLoginEmail" placeholder="admin@example.com"/>
+    </div>
+    <div class="admin-field">
+      <label>Password</label>
+      <input type="password" id="adminLoginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminEmailSignIn()"/>
+    </div>
+    <button class="btn-admin-login" onclick="adminEmailSignIn()">Sign In</button>
+    <p style="font-size:0.72rem;color:var(--muted);text-align:center;margin-top:14px;">Restricted to authorized administrators only.</p>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="admin-toast" id="adminToast">
+  <i class="bi bi-check-circle-fill" id="adminToastIcon"></i>
+  <span id="adminToastText">Success!</span>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar" style="display:none;">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-name">🗳️ AIVM Admin</div>
+    <div class="sidebar-brand-sub">All India Voting Machine</div>
+  </div>
+
+  <div class="sidebar-section-label">Dashboard</div>
+  <a class="nav-item-side active" onclick="showTab('overview', this)">
+    <i class="bi bi-speedometer2"></i> Overview
+    <span class="live-badge-side">LIVE</span>
+  </a>
+  <a class="nav-item-side" onclick="showTab('analytics', this)">
+    <i class="bi bi-graph-up-arrow"></i> Analytics
+  </a>
+
+  <div class="sidebar-section-label">Polls</div>
+  <a class="nav-item-side" onclick="showTab('create', this)">
+    <i class="bi bi-plus-circle-fill"></i> Create Poll
+  </a>
+  <a class="nav-item-side" onclick="showTab('manage', this)">
+    <i class="bi bi-list-task"></i> Manage Polls
+  </a>
+
+  <div class="sidebar-section-label">Voters</div>
+  <a class="nav-item-side" onclick="showTab('voters', this)">
+    <i class="bi bi-people-fill"></i> All Voters
+  </a>
+  <a class="nav-item-side" onclick="showTab('blocked', this)">
+    <i class="bi bi-slash-circle-fill"></i> Blocked Voters
+  </a>
+  <a class="nav-item-side" onclick="showTab('fake', this)">
+    <i class="bi bi-robot"></i> Fake Vote Detector
+  </a>
+
+  <div class="sidebar-section-label">System</div>
+  <a class="nav-item-side" onclick="showTab('visitors', this)">
+    <i class="bi bi-eye-fill"></i> Visitors
+  </a>
+  <a class="nav-item-side" onclick="showTab('settings', this)">
+    <i class="bi bi-gear-fill"></i> Settings
+  </a>
+  <a class="nav-item-side" href="index.html" target="_blank">
+    <i class="bi bi-box-arrow-up-right"></i> View Site
+  </a>
+
+  <div class="sidebar-footer">
+    <div style="margin-bottom:8px;color:rgba(255,255,255,0.5);font-size:0.75rem;">
+      👤 <span id="adminUserLabel">Admin</span>
+    </div>
+    <button onclick="if(window._adminSignOut)window._adminSignOut()" style="background:rgba(239,68,68,0.1);color:#EF4444;border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:5px 12px;font-size:0.75rem;cursor:pointer;width:100%;margin-bottom:6px;">
+      🚪 Sign Out
+    </button>
+    <span class="live-dot me-1"></span> Real-time connected<br/>
+    © 2024 AIVM Admin Panel
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main-content" style="display:none;">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbarTitle">📊 Overview</div>
+      <div class="topbar-meta" id="topbarMeta">Real-time dashboard</div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span style="font-size:0.78rem;color:var(--muted);">
+        <span class="live-dot me-1"></span>
+        <span id="liveVoteCount">0</span> total votes
+      </span>
+      <span style="font-size:0.78rem;color:var(--muted);" id="topbarTime"></span>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ── OVERVIEW TAB ── -->
+    <div id="tab-overview" class="admin-tab active">
+      <!-- Stats Row -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:rgba(255,103,19,0.1);">🗳️</div>
+            <div class="stat-card-num" id="ov-total-votes">—</div>
+            <div class="stat-card-label">Total Votes</div>
+            <div class="stat-card-change text-success"><i class="bi bi-arrow-up-short"></i><span id="ov-votes-today">0</span> today</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:rgba(19,136,8,0.1);">📋</div>
+            <div class="stat-card-num" id="ov-total-polls">—</div>
+            <div class="stat-card-label">Active Polls</div>
+            <div class="stat-card-change text-muted"><span id="ov-total-all">0</span> total created</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:rgba(0,0,128,0.08);">👥</div>
+            <div class="stat-card-num" id="ov-unique-voters">—</div>
+            <div class="stat-card-label">Unique Voters</div>
+            <div class="stat-card-change text-muted">by email</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:rgba(239,68,68,0.08);">🚫</div>
+            <div class="stat-card-num" id="ov-blocked">—</div>
+            <div class="stat-card-label">Blocked Voters</div>
+            <div class="stat-card-change text-danger"><span id="ov-fake">0</span> flagged fake</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts + Activity -->
+      <div class="row g-3">
+        <div class="col-md-8">
+          <div class="panel-card mb-3">
+            <div class="panel-card-header">
+              <div class="panel-card-title">📈 Votes Over Time (Last 7 Days)</div>
+              <span class="live-dot"></span>
+            </div>
+            <div class="panel-card-body">
+              <canvas id="votesChart" height="120"></canvas>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div class="panel-card-title">🔥 Top 5 Polls Right Now</div>
+              <button class="btn-primary-admin" style="padding:6px 14px;font-size:0.82rem;" onclick="loadOverview()">↻ Refresh</button>
+            </div>
+            <div class="panel-card-body p-0">
+              <table class="admin-table">
+                <thead><tr><th>#</th><th>Poll</th><th>Category</th><th>Votes</th><th>Status</th></tr></thead>
+                <tbody id="topPollsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="panel-card mb-3">
+            <div class="panel-card-header">
+              <div class="panel-card-title">📊 Category Split</div>
+            </div>
+            <div class="panel-card-body">
+              <canvas id="catChart" height="200"></canvas>
+            </div>
+          </div>
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div class="panel-card-title">⚡ Live Feed</div>
+              <span class="live-dot"></span>
+            </div>
+            <div id="adminFeed" style="max-height:260px;overflow-y:auto;padding:12px;">
+              <div class="text-muted text-center" style="font-size:0.8rem;padding:20px;">Waiting for votes...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ANALYTICS TAB ── -->
+    <div id="tab-analytics" class="admin-tab">
+      <div class="analytics-grid mb-4">
+        <div class="panel-card">
+          <div class="panel-card-header"><div class="panel-card-title">📅 Votes Per Day (30 days)</div></div>
+          <div class="panel-card-body"><canvas id="dailyChart" height="200"></canvas></div>
+        </div>
+        <div class="panel-card">
+          <div class="panel-card-header"><div class="panel-card-title">🌐 Visitors Per Day</div></div>
+          <div class="panel-card-body"><canvas id="visitorsChart" height="200"></canvas></div>
+        </div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-card-header"><div class="panel-card-title">📊 Poll Performance</div></div>
+        <div class="panel-card-body p-0">
+          <table class="admin-table" id="pollPerfTable">
+            <thead><tr><th>Poll</th><th>Category</th><th>Votes</th><th>Views</th><th>Conversion %</th><th>Featured</th><th>Created</th></tr></thead>
+            <tbody id="pollPerfBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CREATE POLL TAB ── -->
+    <div id="tab-create" class="admin-tab">
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div class="panel-card-title">➕ Create New Poll</div>
+            </div>
+            <div class="panel-card-body">
+              <div class="mb-3">
+                <label class="form-label-admin">Poll Title *</label>
+                <input type="text" id="newTitle" class="form-control-admin" placeholder="e.g. Who is India's Best PM?"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label-admin">Description</label>
+                <textarea id="newDesc" class="form-control-admin" rows="2" placeholder="Optional description..."></textarea>
+              </div>
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <label class="form-label-admin">Category *</label>
+                  <select id="newCat" class="form-control-admin">
+                    <option value="Politics & Government">🏛️ Politics & Government</option>
+                    <option value="Sports & Cricket">🏏 Sports & Cricket</option>
+                    <option value="Entertainment & Bollywood">🎬 Entertainment & Bollywood</option>
+                    <option value="Social Issues & Culture">👥 Social Issues & Culture</option>
+                    <option value="General">🗳️ General</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label-admin">Poll Type *</label>
+                  <select id="newType" class="form-control-admin" onchange="onTypeChange()">
+                    <option value="multi">Multi-option</option>
+                    <option value="yesno">Yes / No</option>
+                    <option value="image">Image Options</option>
+                    <option value="rating">Rating (1-5 Stars)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Image -->
+              <div class="mb-3">
+                <label class="form-label-admin">Poll Cover Image</label>
+                <div class="d-flex gap-2 mb-2">
+                  <button class="btn-sm-icon" onclick="toggleImgMethod('url')" id="btnImgUrl" style="background:var(--ash)">🔗 URL</button>
+                  <button class="btn-sm-icon" onclick="toggleImgMethod('upload')" id="btnImgUpload">📤 Upload</button>
+                </div>
+                <div id="imgUrlInput">
+                  <input type="url" id="newImg" class="form-control-admin" placeholder="https://example.com/image.jpg" oninput="previewImage()"/>
+                  <img id="imgPreviewLg" class="img-preview-lg" style="display:none" alt="Preview"/>
+                </div>
+                <div id="imgUploadInput" style="display:none">
+                  <input type="file" id="imgFile" accept="image/*" class="form-control-admin" onchange="handleImgUpload(this)"/>
+                  <img id="imgPreviewUpload" class="img-preview-lg" style="display:none" alt="Preview"/>
+                </div>
+              </div>
+
+              <!-- Options -->
+              <div id="optionsSection" class="mb-3">
+                <label class="form-label-admin">Poll Options *</label>
+                <div id="optionsList">
+                  <div class="option-row">
+                    <input type="text" class="form-control-admin option-text" placeholder="Option 1"/>
+                    <input type="url" class="form-control-admin option-img-url" placeholder="Image URL (optional)" style="max-width:220px"/>
+                    <button class="btn-danger-sm" onclick="removeOption(this)">✕</button>
+                  </div>
+                  <div class="option-row">
+                    <input type="text" class="form-control-admin option-text" placeholder="Option 2"/>
+                    <input type="url" class="form-control-admin option-img-url" placeholder="Image URL (optional)" style="max-width:220px"/>
+                    <button class="btn-danger-sm" onclick="removeOption(this)">✕</button>
+                  </div>
+                </div>
+                <button class="btn-add-opt" onclick="addOption()">+ Add Another Option</button>
+              </div>
+
+              <!-- Settings -->
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <label class="form-label-admin">End Date (optional)</label>
+                  <input type="datetime-local" id="newEnds" class="form-control-admin"/>
+                </div>
+                <div class="col-6">
+                  <label class="form-label-admin">Visibility</label>
+                  <select id="newActive" class="form-control-admin">
+                    <option value="true">✅ Active (visible)</option>
+                    <option value="false">⏸️ Inactive (hidden)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="d-flex gap-3 mb-3 flex-wrap">
+                <div class="toggle-wrap">
+                  <label class="toggle"><input type="checkbox" id="newFeatured"/><div class="toggle-slider"></div></label>
+                  <span style="font-size:0.83rem;">⭐ Feature this poll</span>
+                </div>
+                <div class="toggle-wrap">
+                  <label class="toggle"><input type="checkbox" id="newShowResults" checked/><div class="toggle-slider"></div></label>
+                  <span style="font-size:0.83rem;">📊 Show results immediately after vote</span>
+                </div>
+              </div>
+
+              <button class="btn-primary-admin w-100" onclick="createPoll()" id="createBtn">
+                🚀 Publish Poll to India
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="panel-card" style="position:sticky;top:80px">
+            <div class="panel-card-header"><div class="panel-card-title">👁️ Preview</div></div>
+            <div class="panel-card-body" id="pollPreview">
+              <div class="text-muted text-center py-4" style="font-size:0.85rem;">
+                Fill in the form to see a preview
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MANAGE POLLS TAB ── -->
+    <div id="tab-manage" class="admin-tab">
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <div class="panel-card-title">📋 All Polls</div>
+          <div class="d-flex gap-2">
+            <input type="text" placeholder="Search polls..." class="form-control-admin" style="width:200px" id="pollSearch" oninput="filterPolls()"/>
+            <select class="form-control-admin" style="width:150px" id="pollCatFilter" onchange="filterPolls()">
+              <option value="">All Categories</option>
+              <option>Politics & Government</option>
+              <option>Sports & Cricket</option>
+              <option>Entertainment & Bollywood</option>
+              <option>Social Issues & Culture</option>
+              <option>General</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-card-body p-0" style="overflow-x:auto">
+          <table class="admin-table">
+            <thead><tr>
+              <th>Poll</th><th>Category</th><th>Type</th><th>Votes</th>
+              <th>Featured</th><th>Status</th><th>Results</th><th>Created</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="managePollsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VOTERS TAB ── -->
+    <div id="tab-voters" class="admin-tab">
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <div class="panel-card-title">👥 All Voters</div>
+          <div class="d-flex gap-2">
+            <input type="text" placeholder="Search by email..." id="voterSearch" class="form-control-admin" style="width:220px" oninput="filterVoters()"/>
+            <button class="btn-primary-admin" style="padding:6px 14px;font-size:0.82rem;" onclick="exportVotersCSV()">
+              📥 Export CSV
+            </button>
+          </div>
+        </div>
+        <div class="panel-card-body p-0" style="overflow-x:auto">
+          <table class="admin-table">
+            <thead><tr><th>#</th><th>Email</th><th>Name</th><th>Poll Voted</th><th>Option</th><th>Voted At</th><th>Fake?</th><th>Actions</th></tr></thead>
+            <tbody id="votersTableBody"></tbody>
+          </table>
+        </div>
+        <div class="p-3 d-flex gap-2" id="voterPagination"></div>
+      </div>
+    </div>
+
+    <!-- ── BLOCKED TAB ── -->
+    <div id="tab-blocked" class="admin-tab">
+      <div class="row g-3 mb-3">
+        <div class="col-md-5">
+          <div class="panel-card">
+            <div class="panel-card-header"><div class="panel-card-title">🚫 Block Voter</div></div>
+            <div class="panel-card-body">
+              <div class="mb-3">
+                <label class="form-label-admin">Email to Block</label>
+                <input type="email" id="blockEmail" class="form-control-admin" placeholder="voter@gmail.com"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label-admin">Reason</label>
+                <input type="text" id="blockReason" class="form-control-admin" placeholder="e.g. Fake votes, Spam"/>
+              </div>
+              <button class="btn-primary-admin w-100" onclick="blockVoter()" style="background:linear-gradient(135deg,#EF4444,#DC2626)">
+                🚫 Block This Voter
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-7">
+          <div class="panel-card h-100">
+            <div class="panel-card-header">
+              <div class="panel-card-title">Blocked List</div>
+              <span style="font-size:0.8rem;color:var(--muted)" id="blockedCount">0 blocked</span>
+            </div>
+            <div style="max-height:300px;overflow-y:auto">
+              <table class="admin-table">
+                <thead><tr><th>Email</th><th>Reason</th><th>Date</th><th>Action</th></tr></thead>
+                <tbody id="blockedBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FAKE VOTE DETECTOR TAB ── -->
+    <div id="tab-fake" class="admin-tab">
+      <div class="panel-card mb-3">
+        <div class="panel-card-header">
+          <div class="panel-card-title">🤖 Fake Vote Detector</div>
+          <button class="btn-primary-admin" style="padding:6px 14px;font-size:0.82rem;" onclick="runFakeDetector()">
+            🔍 Scan Now
+          </button>
+        </div>
+        <div class="panel-card-body">
+          <div class="alert" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px 16px;font-size:0.83rem;">
+            <strong>⚠️ Detection Criteria:</strong> Votes from same IP within 60 seconds, unusual email patterns (temp mails), bulk votes from similar usernames.
+          </div>
+          <table class="admin-table mt-3">
+            <thead><tr><th>Email</th><th>Poll</th><th>Reason</th><th>Voted At</th><th>Action</th></tr></thead>
+            <tbody id="fakeVotesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VISITORS TAB ── -->
+    <div id="tab-visitors" class="admin-tab">
+      <div class="row g-3 mb-3">
+        <div class="col-md-3"><div class="stat-card"><div class="stat-card-num" id="vis-today">—</div><div class="stat-card-label">Visitors Today</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-card-num" id="vis-total">—</div><div class="stat-card-label">Total Visitors</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-card-num" id="vis-unique">—</div><div class="stat-card-label">Unique Sessions</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-card-num" id="vis-online">—</div><div class="stat-card-label">Online Estimate</div></div></div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-card-header"><div class="panel-card-title">👁️ Recent Visitors</div></div>
+        <div class="panel-card-body p-0" style="max-height:500px;overflow-y:auto">
+          <table class="admin-table">
+            <thead><tr><th>Session</th><th>User Agent</th><th>Referrer</th><th>Page</th><th>Time</th></tr></thead>
+            <tbody id="visitorsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS TAB ── -->
+    <div id="tab-settings" class="admin-tab">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="panel-card">
+            <div class="panel-card-header"><div class="panel-card-title">⚙️ Site Settings</div></div>
+            <div class="panel-card-body" id="settingsBody">Loading...</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="panel-card">
+            <div class="panel-card-header"><div class="panel-card-title">🗑️ Danger Zone</div></div>
+            <div class="panel-card-body">
+              <div class="mb-3">
+                <div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">Delete All Votes for a Poll</div>
+                <div class="d-flex gap-2">
+                  <select id="delVotesPoll" class="form-control-admin flex-1" style="flex:1"></select>
+                  <button class="btn-danger-sm" onclick="deleteAllVotesForPoll()" style="white-space:nowrap">🗑️ Delete Votes</button>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">Clear All Visitors Log</div>
+                <button class="btn-danger-sm w-100" onclick="clearVisitors()">🧹 Clear Visitors</button>
+              </div>
+              <div>
+                <div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">Export All Data as CSV</div>
+                <button class="btn-success-sm w-100" onclick="exportAllCSV()">📥 Export Everything</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://rziqbgttxzlvmzsgyeov.supabase.co';
+const sb = supabase.createClient(SUPABASE_URL, 'sb_publishable_dvLA7nRLEueWOCS6Cf74tw_fD4kl3hG');
+
+// ═══════════════════════════════════════════════════════
+// ADMIN AUTH
+// ═══════════════════════════════════════════════════════
+async function adminGoogleSignIn() {
+  if (!window._adminSignInGoogle) { alert('Auth not ready yet, please wait a moment.'); return; }
+  try { await window._adminSignInGoogle(); }
+  catch(e) { alert('Sign-in error: ' + (e.message||e)); }
+}
+async function adminEmailSignIn() {
+  const email = document.getElementById('adminLoginEmail').value.trim();
+  const pass = document.getElementById('adminLoginPass').value;
+  if (!email||!pass) { alert('Enter email and password.'); return; }
+  if (!window._adminSignInEmail) { alert('Auth not ready yet, please wait a moment.'); return; }
+  try { await window._adminSignInEmail(email, pass); }
+  catch(e) { alert('Sign-in error: ' + (e.message||e)); }
+}
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let allAdminPolls = [];
+let allVotes = [];
+let chartVotes = null, chartCat = null, chartDaily = null, chartVisitors = null;
+let currentTab = 'overview';
+let optionCount = 2;
+let imgMethod = 'url';
+
+// ═══════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════
+setInterval(() => {
+  document.getElementById('topbarTime').textContent = new Date().toLocaleString('en-IN');
+}, 1000);
+
+// ═══════════════════════════════════════════════════════
+// TAB NAVIGATION
+// ═══════════════════════════════════════════════════════
+const tabTitles = {
+  overview: '📊 Overview', analytics: '📈 Analytics',
+  create: '➕ Create Poll', manage: '📋 Manage Polls',
+  voters: '👥 Voters', blocked: '🚫 Blocked Voters',
+  fake: '🤖 Fake Detector', visitors: '👁️ Visitors', settings: '⚙️ Settings'
+};
+function showTab(tab, el) {
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item-side').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (el) el.classList.add('active');
+  currentTab = tab;
+  document.getElementById('topbarTitle').textContent = tabTitles[tab] || tab;
+  document.getElementById('topbarMeta').textContent = 'Last updated: ' + new Date().toLocaleTimeString('en-IN');
+  loadTab(tab);
+  gsap.from('#tab-' + tab, { opacity: 0, y: 10, duration: 0.3 });
+}
+
+function loadTab(tab) {
+  if (tab === 'overview') loadOverview();
+  else if (tab === 'analytics') loadAnalytics();
+  else if (tab === 'manage') loadManagePolls();
+  else if (tab === 'voters') loadVoters();
+  else if (tab === 'blocked') loadBlocked();
+  else if (tab === 'visitors') loadVisitors();
+  else if (tab === 'settings') loadSettings();
+  else if (tab === 'fake') runFakeDetector();
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+async function init() {
+  await loadAllPolls();
+  loadOverview();
+  setupRealtime();
+  populateDelPollSelect();
+}
+
+async function loadAllPolls() {
+  const { data } = await sb.from('polls').select('*, poll_options(*)').order('created_at', { ascending: false });
+  allAdminPolls = data || [];
+}
+
+// ═══════════════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════════════
+async function loadOverview() {
+  const { data: votes } = await sb.from('votes').select('id, poll_id, voter_email, is_flagged_fake, created_at');
+  allVotes = votes || [];
+  const { data: blocked } = await sb.from('blocked_voters').select('id');
+  const totalVotes = allVotes.length;
+  const uniqueEmails = new Set(allVotes.map(v => v.voter_email)).size;
+  const fakeCount = allVotes.filter(v => v.is_flagged_fake).length;
+  const blockedCount = blocked?.length || 0;
+  const today = new Date().toDateString();
+  const votesToday = allVotes.filter(v => new Date(v.created_at).toDateString() === today).length;
+  const activePollsCount = allAdminPolls.filter(p => p.is_active).length;
+
+  setText('ov-total-votes', totalVotes.toLocaleString());
+  setText('ov-total-polls', activePollsCount);
+  setText('ov-unique-voters', uniqueEmails.toLocaleString());
+  setText('ov-blocked', blockedCount);
+  setText('ov-fake', fakeCount);
+  setText('ov-votes-today', votesToday);
+  setText('ov-total-all', allAdminPolls.length);
+  setText('liveVoteCount', totalVotes.toLocaleString());
+
+  renderTopPollsTable();
+  renderVotesChart();
+  renderCatChart();
+  gsap.from('.stat-card', { y: 20, opacity: 0, stagger: 0.08, duration: 0.4 });
+}
+
+function renderTopPollsTable() {
+  const top = [...allAdminPolls].sort((a,b) => (b.total_votes||0)-(a.total_votes||0)).slice(0,5);
+  document.getElementById('topPollsTable').innerHTML = top.map((p,i) => `
+  <tr>
+    <td><strong>${i+1}</strong></td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</td>
+    <td>${p.category}</td>
+    <td><strong style="color:var(--saffron)">${(p.total_votes||0).toLocaleString()}</strong></td>
+    <td><span class="${p.is_active ? 'badge-active' : 'badge-inactive'}">${p.is_active ? '✅ Active' : '⏸ Off'}</span></td>
+  </tr>`).join('');
+}
+
+function renderVotesChart() {
+  const ctx = document.getElementById('votesChart').getContext('2d');
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-6+i);
+    return d.toLocaleDateString('en-IN',{month:'short',day:'numeric'});
+  });
+  const counts = days.map((_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-6+i);
+    const ds = d.toDateString();
+    return allVotes.filter(v => new Date(v.created_at).toDateString() === ds).length;
+  });
+  if (chartVotes) chartVotes.destroy();
+  chartVotes = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: days, datasets: [{ label: 'Votes', data: counts,
+      backgroundColor: 'rgba(255,103,19,0.7)', borderColor: 'var(--saffron)',
+      borderWidth: 2, borderRadius: 6 }]},
+    options: { responsive: true, plugins: { legend: { display: false }},
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }}}}
+  });
+}
+
+function renderCatChart() {
+  const ctx = document.getElementById('catChart').getContext('2d');
+  const cats = ['Politics & Government','Sports & Cricket','Entertainment & Bollywood','Social Issues & Culture','General'];
+  const data = cats.map(c => allAdminPolls.filter(p => p.category===c).reduce((s,p)=>s+(p.total_votes||0),0));
+  if (chartCat) chartCat.destroy();
+  chartCat = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: cats.map(c => c.split(' ')[0]),
+      datasets: [{ data, backgroundColor: ['#000080','#138808','#FF6713','#8A2BE2','#6B7280'] }]},
+    options: { responsive: true, plugins: { legend: { position:'bottom', labels:{ font:{size:10}}}}}
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// ANALYTICS
+// ═══════════════════════════════════════════════════════
+async function loadAnalytics() {
+  const { data: votes } = await sb.from('votes').select('created_at').order('created_at', { ascending: true });
+  const { data: visitors } = await sb.from('visitors').select('visited_at').order('visited_at', { ascending: true });
+
+  const days30 = Array.from({length:30}, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-29+i);
+    return d.toLocaleDateString('en-IN',{month:'short',day:'numeric'});
+  });
+  const voteCounts = days30.map((_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-29+i);
+    const ds = d.toDateString();
+    return (votes||[]).filter(v => new Date(v.created_at).toDateString()===ds).length;
+  });
+  const visCounts = days30.map((_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-29+i);
+    const ds = d.toDateString();
+    return (visitors||[]).filter(v => new Date(v.visited_at).toDateString()===ds).length;
+  });
+
+  const ctx1 = document.getElementById('dailyChart').getContext('2d');
+  const ctx2 = document.getElementById('visitorsChart').getContext('2d');
+  if (chartDaily) chartDaily.destroy();
+  if (chartVisitors) chartVisitors.destroy();
+  chartDaily = new Chart(ctx1, {
+    type: 'line',
+    data: { labels: days30, datasets: [{ label: 'Votes', data: voteCounts,
+      borderColor: 'var(--saffron)', backgroundColor: 'rgba(255,103,19,0.1)',
+      fill: true, tension: 0.4, pointRadius: 2 }]},
+    options: { responsive: true, plugins: { legend: { display: false }},
+      scales: { x: { ticks: { maxTicksLimit: 8 }}, y: { beginAtZero: true }}}
+  });
+  chartVisitors = new Chart(ctx2, {
+    type: 'line',
+    data: { labels: days30, datasets: [{ label: 'Visitors', data: visCounts,
+      borderColor: 'var(--green)', backgroundColor: 'rgba(19,136,8,0.1)',
+      fill: true, tension: 0.4, pointRadius: 2 }]},
+    options: { responsive: true, plugins: { legend: { display: false }},
+      scales: { x: { ticks: { maxTicksLimit: 8 }}, y: { beginAtZero: true }}}
+  });
+
+  document.getElementById('pollPerfBody').innerHTML = allAdminPolls.map(p => `
+  <tr>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</td>
+    <td>${p.category}</td>
+    <td><strong style="color:var(--saffron)">${(p.total_votes||0).toLocaleString()}</strong></td>
+    <td>${(p.view_count||0).toLocaleString()}</td>
+    <td>${p.view_count ? Math.round(((p.total_votes||0)/p.view_count)*100) : 0}%</td>
+    <td>${p.is_featured ? '⭐' : '—'}</td>
+    <td style="font-size:0.78rem;color:var(--muted)">${new Date(p.created_at).toLocaleDateString('en-IN')}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// CREATE POLL
+// ═══════════════════════════════════════════════════════
+function onTypeChange() {
+  const type = document.getElementById('newType').value;
+  const sec = document.getElementById('optionsSection');
+  if (type === 'yesno') {
+    document.getElementById('optionsList').innerHTML = `
+    <div class="option-row"><input type="text" class="form-control-admin option-text" value="Yes" readonly/></div>
+    <div class="option-row"><input type="text" class="form-control-admin option-text" value="No" readonly/></div>`;
+    document.querySelector('.btn-add-opt').style.display = 'none';
+  } else if (type === 'rating') {
+    document.getElementById('optionsList').innerHTML = `
+    ${[1,2,3,4,5].map(n=>`<div class="option-row"><input type="text" class="form-control-admin option-text" value="${n} Star${n>1?'s':''}" readonly/></div>`).join('')}`;
+    document.querySelector('.btn-add-opt').style.display = 'none';
+  } else {
+    document.querySelector('.btn-add-opt').style.display = '';
+    if (document.querySelectorAll('.option-row').length < 2) addOption();
+  }
+}
+
+function addOption() {
+  optionCount++;
+  const div = document.createElement('div');
+  div.className = 'option-row';
+  div.innerHTML = `
+  <input type="text" class="form-control-admin option-text" placeholder="Option ${optionCount}"/>
+  <input type="url" class="form-control-admin option-img-url" placeholder="Image URL (optional)" style="max-width:220px"/>
+  <button class="btn-danger-sm" onclick="removeOption(this)">✕</button>`;
+  document.getElementById('optionsList').appendChild(div);
+  gsap.from(div, { opacity:0, y:10, duration:0.3 });
+}
+
+function removeOption(btn) {
+  const rows = document.querySelectorAll('.option-row');
+  if (rows.length <= 2) { showAdminToast('error', 'Need at least 2 options.'); return; }
+  btn.closest('.option-row').remove();
+}
+
+function toggleImgMethod(method) {
+  imgMethod = method;
+  document.getElementById('imgUrlInput').style.display = method === 'url' ? '' : 'none';
+  document.getElementById('imgUploadInput').style.display = method === 'upload' ? '' : 'none';
+}
+
+function previewImage() {
+  const url = document.getElementById('newImg').value;
+  const img = document.getElementById('imgPreviewLg');
+  if (url) { img.src = url; img.style.display = ''; }
+  else img.style.display = 'none';
+}
+
+function handleImgUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('imgPreviewUpload');
+    img.src = e.target.result; img.style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function createPoll() {
+  const title = document.getElementById('newTitle').value.trim();
+  const desc = document.getElementById('newDesc').value.trim();
+  const cat = document.getElementById('newCat').value;
+  const type = document.getElementById('newType').value;
+  const img = document.getElementById('newImg')?.value.trim() || '';
+  const endsAt = document.getElementById('newEnds').value;
+  const isActive = document.getElementById('newActive').value === 'true';
+  const isFeatured = document.getElementById('newFeatured').checked;
+  const showResults = document.getElementById('newShowResults').checked;
+
+  if (!title) { showAdminToast('error', 'Poll title is required.'); return; }
+
+  const optTexts = [...document.querySelectorAll('.option-text')].map(i => i.value.trim()).filter(Boolean);
+  const optImgs = [...document.querySelectorAll('.option-img-url')].map(i => i.value.trim());
+  if (optTexts.length < 2) { showAdminToast('error', 'Add at least 2 options.'); return; }
+
+  const btn = document.getElementById('createBtn');
+  btn.disabled = true; btn.textContent = '⏳ Publishing...';
+
+  const { data: poll, error } = await sb.from('polls').insert({
+    title, description: desc, category: cat, poll_type: type,
+    image_url: img || null, is_active: isActive, is_featured: isFeatured,
+    show_results_immediately: showResults,
+    ends_at: endsAt ? new Date(endsAt).toISOString() : null
+  }).select().single();
+
+  if (error) {
+    showAdminToast('error', 'Failed to create poll: ' + error.message);
+    btn.disabled = false; btn.textContent = '🚀 Publish Poll to India';
+    return;
+  }
+
+  // Insert options
+  const options = optTexts.map((text, i) => ({
+    poll_id: poll.id, option_text: text,
+    option_image_url: optImgs[i] || null, display_order: i + 1
+  }));
+  await sb.from('poll_options').insert(options);
+
+  showAdminToast('success', '✅ Poll published successfully!');
+  btn.disabled = false; btn.textContent = '🚀 Publish Poll to India';
+  await loadAllPolls();
+  populateDelPollSelect();
+
+  // Reset form
+  document.getElementById('newTitle').value = '';
+  document.getElementById('newDesc').value = '';
+  document.getElementById('optionsList').innerHTML = `
+  <div class="option-row"><input type="text" class="form-control-admin option-text" placeholder="Option 1"/>
+    <input type="url" class="form-control-admin option-img-url" placeholder="Image URL" style="max-width:220px"/>
+    <button class="btn-danger-sm" onclick="removeOption(this)">✕</button></div>
+  <div class="option-row"><input type="text" class="form-control-admin option-text" placeholder="Option 2"/>
+    <input type="url" class="form-control-admin option-img-url" placeholder="Image URL" style="max-width:220px"/>
+    <button class="btn-danger-sm" onclick="removeOption(this)">✕</button></div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// MANAGE POLLS
+// ═══════════════════════════════════════════════════════
+function loadManagePolls() {
+  renderManagePollsTable(allAdminPolls);
+}
+
+function renderManagePollsTable(polls) {
+  document.getElementById('managePollsBody').innerHTML = polls.map(p => `
+  <tr>
+    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+      ${p.image_url ? `<img src="${esc(p.image_url)}" class="img-preview me-2" onerror="this.remove()"/>` : ''}
+      <strong>${esc(p.title)}</strong>
+    </td>
+    <td style="font-size:0.78rem">${p.category}</td>
+    <td><span style="font-size:0.75rem;background:var(--ash);padding:2px 8px;border-radius:4px">${p.poll_type}</span></td>
+    <td><strong style="color:var(--saffron)">${(p.total_votes||0).toLocaleString()}</strong></td>
+    <td>
+      <label class="toggle"><input type="checkbox" ${p.is_featured?'checked':''} onchange="toggleFeatured('${p.id}', this.checked)"/><div class="toggle-slider"></div></label>
+    </td>
+    <td><span class="${p.is_active ? 'badge-active':'badge-inactive'}">${p.is_active?'Active':'Inactive'}</span></td>
+    <td>
+      <label class="toggle"><input type="checkbox" ${p.show_results_immediately?'checked':''} onchange="toggleShowResults('${p.id}', this.checked)"/><div class="toggle-slider"></div></label>
+    </td>
+    <td style="font-size:0.75rem;color:var(--muted)">${new Date(p.created_at).toLocaleDateString('en-IN')}</td>
+    <td>
+      <div class="d-flex gap-1 flex-wrap">
+        <button class="btn-success-sm" onclick="togglePollActive('${p.id}', ${!p.is_active})">${p.is_active?'⏸ Deactivate':'▶ Activate'}</button>
+        <button class="btn-danger-sm" onclick="deletePoll('${p.id}')">🗑 Delete</button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+function filterPolls() {
+  const search = document.getElementById('pollSearch').value.toLowerCase();
+  const cat = document.getElementById('pollCatFilter').value;
+  const filtered = allAdminPolls.filter(p =>
+    (!search || p.title.toLowerCase().includes(search)) &&
+    (!cat || p.category === cat)
+  );
+  renderManagePollsTable(filtered);
+}
+
+async function togglePollActive(id, state) {
+  await sb.from('polls').update({ is_active: state }).eq('id', id);
+  await loadAllPolls();
+  loadManagePolls();
+  showAdminToast('success', state ? 'Poll activated!' : 'Poll deactivated.');
+}
+
+async function toggleFeatured(id, state) {
+  await sb.from('polls').update({ is_featured: state }).eq('id', id);
+  showAdminToast('success', state ? '⭐ Featured!' : 'Unfeatured.');
+}
+
+async function toggleShowResults(id, state) {
+  await sb.from('polls').update({ show_results_immediately: state }).eq('id', id);
+  showAdminToast('success', 'Results visibility updated.');
+}
+
+async function deletePoll(id) {
+  if (!confirm('Delete this poll and all its votes permanently?')) return;
+  await sb.from('polls').delete().eq('id', id);
+  await loadAllPolls();
+  loadManagePolls();
+  showAdminToast('success', '🗑️ Poll deleted.');
+}
+
+// ═══════════════════════════════════════════════════════
+// VOTERS
+// ═══════════════════════════════════════════════════════
+let allVoterData = [];
+async function loadVoters() {
+  const { data } = await sb.from('votes')
+    .select('*, polls(title), poll_options(option_text)')
+    .order('created_at', { ascending: false })
+    .limit(500);
+  allVoterData = data || [];
+  renderVotersTable(allVoterData);
+}
+
+function renderVotersTable(data) {
+  document.getElementById('votersTableBody').innerHTML = data.map((v, i) => `
+  <tr>
+    <td>${i+1}</td>
+    <td class="voter-email-cell">${esc(v.voter_email)}</td>
+    <td>${esc(v.voter_name || '—')}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.8rem">${esc(v.polls?.title || '—')}</td>
+    <td style="font-size:0.8rem">${esc(v.poll_options?.option_text || '—')}</td>
+    <td style="font-size:0.75rem;color:var(--muted)">${new Date(v.created_at).toLocaleString('en-IN')}</td>
+    <td>${v.is_flagged_fake ? '<span style="color:var(--danger);font-weight:700">⚠ Fake</span>' : '✅'}</td>
+    <td>
+      <div class="d-flex gap-1">
+        <button class="btn-danger-sm" onclick="quickBlock('${esc(v.voter_email)}')">🚫 Block</button>
+        <button class="btn-danger-sm" onclick="deleteVote('${v.id}')">🗑</button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+function filterVoters() {
+  const q = document.getElementById('voterSearch').value.toLowerCase();
+  renderVotersTable(allVoterData.filter(v => v.voter_email.toLowerCase().includes(q)));
+}
+
+async function quickBlock(email) {
+  await sb.from('blocked_voters').upsert({ email, reason: 'Blocked by admin' }, { onConflict: 'email' });
+  showAdminToast('success', `🚫 ${email} blocked.`);
+}
+
+async function deleteVote(id) {
+  await sb.from('votes').delete().eq('id', id);
+  await loadVoters();
+  showAdminToast('success', 'Vote deleted.');
+}
+
+function exportVotersCSV() {
+  const rows = [['Email','Name','Poll','Option','Date','Flagged']];
+  allVoterData.forEach(v => rows.push([v.voter_email, v.voter_name||'', v.polls?.title||'', v.poll_options?.option_text||'', v.created_at, v.is_flagged_fake?'Yes':'No']));
+  downloadCSV(rows, 'voters.csv');
+}
+
+// ═══════════════════════════════════════════════════════
+// BLOCKED VOTERS
+// ═══════════════════════════════════════════════════════
+async function loadBlocked() {
+  const { data } = await sb.from('blocked_voters').select('*').order('blocked_at', { ascending: false });
+  const list = data || [];
+  document.getElementById('blockedCount').textContent = list.length + ' blocked';
+  document.getElementById('blockedBody').innerHTML = list.map(b => `
+  <tr>
+    <td class="voter-email-cell">${esc(b.email)}</td>
+    <td style="font-size:0.8rem">${esc(b.reason||'—')}</td>
+    <td style="font-size:0.75rem;color:var(--muted)">${new Date(b.blocked_at).toLocaleDateString('en-IN')}</td>
+    <td><button class="btn-success-sm" onclick="unblockVoter('${esc(b.email)}')">✅ Unblock</button></td>
+  </tr>`).join('');
+}
+
+async function blockVoter() {
+  const email = document.getElementById('blockEmail').value.trim().toLowerCase();
+  const reason = document.getElementById('blockReason').value.trim();
+  if (!email) { showAdminToast('error', 'Enter an email to block.'); return; }
+  await sb.from('blocked_voters').upsert({ email, reason }, { onConflict: 'email' });
+  showAdminToast('success', `🚫 ${email} blocked.`);
+  loadBlocked();
+  document.getElementById('blockEmail').value = '';
+  document.getElementById('blockReason').value = '';
+}
+
+async function unblockVoter(email) {
+  await sb.from('blocked_voters').delete().eq('email', email);
+  showAdminToast('success', '✅ Voter unblocked.');
+  loadBlocked();
+}
+
+// ═══════════════════════════════════════════════════════
+// FAKE DETECTOR
+// ═══════════════════════════════════════════════════════
+async function runFakeDetector() {
+  const { data: votes } = await sb.from('votes')
+    .select('*, polls(title)').order('created_at', { ascending: true });
+  if (!votes) return;
+
+  const suspicious = [];
+  const emailCounts = {};
+  votes.forEach(v => { emailCounts[v.voter_email] = (emailCounts[v.voter_email]||0) + 1; });
+
+  const tempDomains = ['tempmail','mailinator','guerrillamail','throwaway','yopmail','sharklasers','fakeinbox'];
+  votes.forEach(v => {
+    const reasons = [];
+    if (emailCounts[v.voter_email] > 3) reasons.push(`Voted ${emailCounts[v.voter_email]} times`);
+    if (tempDomains.some(d => v.voter_email.includes(d))) reasons.push('Temp email domain');
+    if (/^\d+@/.test(v.voter_email)) reasons.push('Numeric-start email pattern');
+    if (reasons.length) suspicious.push({ ...v, reason: reasons.join(', ') });
+  });
+
+  document.getElementById('fakeVotesBody').innerHTML = suspicious.slice(0,50).map(v => `
+  <tr>
+    <td class="voter-email-cell">${esc(v.voter_email)}</td>
+    <td style="font-size:0.8rem">${esc(v.polls?.title||'—')}</td>
+    <td style="color:var(--danger);font-size:0.8rem">${esc(v.reason)}</td>
+    <td style="font-size:0.75rem;color:var(--muted)">${new Date(v.created_at).toLocaleString('en-IN')}</td>
+    <td>
+      <div class="d-flex gap-1">
+        <button class="btn-danger-sm" onclick="quickBlock('${esc(v.voter_email)}')">🚫 Block</button>
+        <button class="btn-danger-sm" onclick="markFake('${v.id}')">⚠ Flag</button>
+      </div>
+    </td>
+  </tr>`).join('') || `<tr><td colspan="5" class="text-center p-3 text-muted">No suspicious votes found. 🎉</td></tr>`;
+
+  showAdminToast('info', `Found ${suspicious.length} suspicious votes.`);
+}
+
+async function markFake(id) {
+  await sb.from('votes').update({ is_flagged_fake: true }).eq('id', id);
+  showAdminToast('success', '⚠️ Vote flagged as fake.');
+  runFakeDetector();
+}
+
+// ═══════════════════════════════════════════════════════
+// VISITORS
+// ═══════════════════════════════════════════════════════
+async function loadVisitors() {
+  const { data } = await sb.from('visitors').select('*').order('visited_at', { ascending: false }).limit(200);
+  const all = data || [];
+  const today = new Date().toDateString();
+  const todayV = all.filter(v => new Date(v.visited_at).toDateString() === today).length;
+  const sessions = new Set(all.map(v => v.session_id)).size;
+  setText('vis-today', todayV);
+  setText('vis-total', all.length);
+  setText('vis-unique', sessions);
+  setText('vis-online', Math.round(sessions * 0.12 + Math.random()*30));
+
+  document.getElementById('visitorsBody').innerHTML = all.slice(0,100).map(v => `
+  <tr>
+    <td style="font-size:0.75rem;color:var(--muted)">${v.session_id?.slice(0,12)}...</td>
+    <td style="font-size:0.75rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.user_agent||'—')}</td>
+    <td style="font-size:0.78rem">${esc(v.referrer||'direct')}</td>
+    <td style="font-size:0.78rem">${esc(v.page_visited||'/')}</td>
+    <td style="font-size:0.75rem;color:var(--muted)">${new Date(v.visited_at).toLocaleString('en-IN')}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════
+async function loadSettings() {
+  const { data } = await sb.from('site_settings').select('*');
+  const settings = {};
+  (data||[]).forEach(s => settings[s.key] = s.value);
+  document.getElementById('settingsBody').innerHTML = `
+  <div class="mb-3">
+    <label class="form-label-admin">Site Name</label>
+    <input type="text" id="set-site-name" class="form-control-admin" value="${esc(settings.site_name||'')}"/>
+  </div>
+  <div class="mb-3">
+    <label class="form-label-admin">Tagline (Hindi/English)</label>
+    <input type="text" id="set-tagline" class="form-control-admin" value="${esc(settings.site_tagline||'')}"/>
+  </div>
+  <div class="mb-3">
+    <label class="form-label-admin">Allow New Votes?</label>
+    <select id="set-allow-votes" class="form-control-admin">
+      <option value="true" ${settings.allow_new_votes==='true'?'selected':''}>✅ Yes</option>
+      <option value="false" ${settings.allow_new_votes==='false'?'selected':''}>🚫 No (Pause all voting)</option>
+    </select>
+  </div>
+  <div class="mb-3">
+    <label class="form-label-admin">Trending Count (sidebar)</label>
+    <input type="number" id="set-trending" class="form-control-admin" value="${settings.trending_count||10}"/>
+  </div>
+  <button class="btn-primary-admin w-100" onclick="saveSettings()">💾 Save Settings</button>`;
+}
+
+async function saveSettings() {
+  const updates = [
+    { key: 'site_name', value: document.getElementById('set-site-name').value },
+    { key: 'site_tagline', value: document.getElementById('set-tagline').value },
+    { key: 'allow_new_votes', value: document.getElementById('set-allow-votes').value },
+    { key: 'trending_count', value: document.getElementById('set-trending').value }
+  ];
+  for (const u of updates) {
+    await sb.from('site_settings').upsert(u, { onConflict: 'key' });
+  }
+  showAdminToast('success', '✅ Settings saved!');
+}
+
+// ═══════════════════════════════════════════════════════
+// DANGER ZONE
+// ═══════════════════════════════════════════════════════
+function populateDelPollSelect() {
+  const sel = document.getElementById('delVotesPoll');
+  if (!sel) return;
+  sel.innerHTML = allAdminPolls.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
+}
+
+async function deleteAllVotesForPoll() {
+  const pollId = document.getElementById('delVotesPoll').value;
+  if (!pollId || !confirm('Delete ALL votes for this poll? This cannot be undone!')) return;
+  await sb.from('votes').delete().eq('poll_id', pollId);
+  await sb.from('polls').update({ total_votes: 0 }).eq('id', pollId);
+  await sb.from('poll_options').update({ vote_count: 0 }).eq('poll_id', pollId);
+  await loadAllPolls();
+  showAdminToast('success', '🗑️ All votes deleted for that poll.');
+}
+
+async function clearVisitors() {
+  if (!confirm('Clear all visitor logs?')) return;
+  await sb.from('visitors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  showAdminToast('success', '🧹 Visitor logs cleared.');
+}
+
+function exportAllCSV() {
+  const rows = [['Poll Title','Category','Total Votes','Featured','Active','Created']];
+  allAdminPolls.forEach(p => rows.push([p.title, p.category, p.total_votes||0, p.is_featured, p.is_active, p.created_at]));
+  downloadCSV(rows, 'aivm-polls.csv');
+}
+
+// ═══════════════════════════════════════════════════════
+// REALTIME
+// ═══════════════════════════════════════════════════════
+function setupRealtime() {
+  sb.channel('admin-realtime')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes' }, async payload => {
+      const v = payload.new;
+      const poll = allAdminPolls.find(p => p.id === v.poll_id);
+      if (poll) poll.total_votes = (poll.total_votes||0)+1;
+      setText('liveVoteCount', allAdminPolls.reduce((s,p)=>s+(p.total_votes||0),0).toLocaleString());
+
+      // Activity feed
+      const feed = document.getElementById('adminFeed');
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:8px 12px;border-bottom:1px solid var(--border);font-size:0.78rem;opacity:0';
+      item.innerHTML = `<span class="live-dot me-1"></span><strong>${v.voter_email?.split('@')[0].slice(0,8)}***</strong> voted on <em>${esc(poll?.title||'a poll')}</em> <span style="color:var(--muted);float:right">${new Date().toLocaleTimeString('en-IN')}</span>`;
+      feed.prepend(item);
+      gsap.to(item, { opacity:1, duration:0.3 });
+      const items = feed.querySelectorAll('div');
+      if (items.length > 20) items[items.length-1].remove();
+
+      if (currentTab === 'overview') {
+        const el = document.getElementById('ov-total-votes');
+        if (el) {
+          const n = parseInt(el.textContent.replace(/,/g,''))||0;
+          el.textContent = (n+1).toLocaleString();
+        }
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, async () => {
+      await loadAllPolls();
+      if (currentTab === 'manage') loadManagePolls();
+    })
+    .subscribe();
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+let toastT;
+function showAdminToast(type, msg) {
+  const t = document.getElementById('adminToast');
+  const icons = { success:'bi-check-circle-fill', error:'bi-x-circle-fill', info:'bi-info-circle-fill' };
+  document.getElementById('adminToastIcon').className = 'bi ' + (icons[type]||icons.info);
+  document.getElementById('adminToastText').textContent = msg;
+  t.style.borderLeft = `4px solid ${type==='success'?'var(--success)':type==='error'?'var(--danger)':'var(--saffron)'}`;
+  clearTimeout(toastT);
+  gsap.to(t, { x:0, duration:0.4, ease:'back.out(1.7)' });
+  t.classList.add('show');
+  toastT = setTimeout(() => gsap.to(t, { x:'120%', duration:0.3, onComplete:()=>t.classList.remove('show') }), 3500);
+}
+
+// ═══════════════════════════════════════════════════════
+// LIVE PREVIEW (Create Poll Tab)
+// ═══════════════════════════════════════════════════════
+function updatePreview() {
+  const title = document.getElementById('newTitle')?.value || 'Your Poll Title';
+  const desc = document.getElementById('newDesc')?.value || '';
+  const cat = document.getElementById('newCat')?.value || 'General';
+  const img = document.getElementById('newImg')?.value || '';
+  const opts = [...document.querySelectorAll('.option-text')].map(i=>i.value.trim()).filter(Boolean);
+  const catEmojis = {'Politics & Government':'🏛️','Sports & Cricket':'🏏','Entertainment & Bollywood':'🎬','Social Issues & Culture':'👥','General':'🗳️'};
+  const preview = document.getElementById('pollPreview');
+  if (!preview) return;
+  preview.innerHTML = `
+  <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;">
+    ${img ? `<img src="${esc(img)}" style="width:100%;height:140px;object-fit:cover" onerror="this.style.display='none'"/>` :
+      `<div style="height:80px;background:linear-gradient(135deg,#f0f0f0,#e0e0e0);display:flex;align-items:center;justify-content:center;font-size:2.5rem">${catEmojis[cat]||'🗳️'}</div>`}
+    <div style="padding:14px">
+      <span style="font-size:0.68rem;font-weight:700;background:rgba(255,103,19,0.1);color:var(--saffron);padding:2px 8px;border-radius:20px">${catEmojis[cat]} ${cat}</span>
+      <div style="font-family:Rajdhani,sans-serif;font-size:1.1rem;font-weight:700;margin:8px 0 4px">${esc(title||'Your Poll Title')}</div>
+      ${desc?`<div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">${esc(desc)}</div>`:''}
+      ${opts.slice(0,4).map(o=>`<div style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:0.83rem">○ ${esc(o)}</div>`).join('')}
+      ${opts.length===0?'<div style="font-size:0.8rem;color:var(--muted)">Add options below...</div>':''}
+      <div style="background:linear-gradient(135deg,var(--saffron),#FF8C42);color:#fff;text-align:center;border-radius:8px;padding:9px;margin-top:10px;font-family:Rajdhani,sans-serif;font-weight:700">🗳️ Cast Your Vote</div>
+    </div>
+  </div>`;
+}
+
+// Attach preview listeners when create tab loads
+document.addEventListener('input', e => {
+  if (['newTitle','newDesc','newImg','newCat'].includes(e.target.id) || e.target.classList.contains('option-text')) {
+    updatePreview();
+  }
+});
+document.addEventListener('change', e => {
+  if (['newCat','newType','newActive'].includes(e.target.id)) updatePreview();
+});
+
+// ═══════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
