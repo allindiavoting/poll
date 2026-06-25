@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>All India Voting Machine — भारत की आवाज़</title>
+<meta name="description" content="Daily trending votes and responses of Indians. Cast your vote, see India's pulse in real time."/>
+<!-- Preconnect for performance -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preconnect" href="https://rziqbgttxzlvmzsgyeov.supabase.co"/>
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyCWcNabSjp73QgNnGOP1Xx313msrKnBlFE",
+    authDomain: "all-india-voting.firebaseapp.com",
+    projectId: "all-india-voting",
+    storageBucket: "all-india-voting.firebasestorage.app",
+    messagingSenderId: "160735636851",
+    appId: "1:160735636851:web:60443834ddf08a2d0f2906",
+    measurementId: "G-B4L4K87G7C"
+  };
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
+
+  window._fbAuth = auth;
+  window._fbGoogle = googleProvider;
+  window._fbSignInGoogle = () => signInWithPopup(auth, googleProvider);
+  window._fbSignInEmail = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
+  window._fbSignUpEmail = (email, pass) => createUserWithEmailAndPassword(auth, email, pass);
+  window._fbSignOut = () => signOut(auth);
+  window._fbOnAuth = (cb) => onAuthStateChanged(auth, cb);
+
+  onAuthStateChanged(auth, (user) => {
+    window._fbCurrentUser = user;
+    const emailInputs = document.querySelectorAll('#voterEmail');
+    if (user && emailInputs.length) {
+      emailInputs.forEach(el => { el.value = user.email; el.readOnly = true; });
+    }
+    const authBtn = document.getElementById('navAuthBtn');
+    if (authBtn) {
+      if (user) {
+        authBtn.innerHTML = `<img src="${user.photoURL||''}" onerror="this.style.display='none'" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px;">${user.displayName||user.email?.split('@')[0]||'User'}`;
+        authBtn.onclick = () => { window._fbSignOut(); };
+        authBtn.title = 'Sign out';
+      } else {
+        authBtn.innerHTML = '<i class="bi bi-person-fill me-1"></i>Sign In';
+        authBtn.onclick = () => openAuthModal();
+        authBtn.title = 'Sign in';
+      }
+    }
+  });
+</script>
+<!-- GSAP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- CountUp.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/countup.js/2.8.0/countUp.umd.js" defer></script>
+
+<style>
+:root {
+  --saffron: #FF6713;
+  --saffron-light: #FF8C42;
+  --saffron-dark: #D94F00;
+  --white: #FFFFFF;
+  --green: #138808;
+  --green-light: #1BA30D;
+  --navy: #000080;
+  --ash: #F4F4F4;
+  --charcoal: #1C1C1C;
+  --muted: #6B7280;
+  --card-bg: #FFFFFF;
+  --border: #E5E7EB;
+  --gradient-hero: linear-gradient(135deg, #FF6713 0%, #FF8C42 30%, #FFFFFF 60%, #138808 100%);
+  --gradient-saffron: linear-gradient(135deg, #FF6713, #FF8C42);
+  --gradient-green: linear-gradient(135deg, #138808, #1BA30D);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-hover: 0 12px 40px rgba(255,103,19,0.18);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', 'Inter', sans-serif;
+  background: #F8F8F8;
+  color: var(--charcoal);
+  overflow-x: hidden;
+}
+
+/* ── LOADER ── */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--charcoal);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px;
+}
+.loader-flag {
+  display: flex; gap: 0; border-radius: 4px; overflow: hidden;
+  box-shadow: 0 0 40px rgba(255,103,19,0.5);
+}
+.loader-flag span {
+  width: 60px; height: 40px;
+}
+.flag-s { background: var(--saffron); }
+.flag-w { background: var(--white); display: flex; align-items: center; justify-content: center; }
+.flag-g { background: var(--green); }
+.loader-text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.4rem; font-weight: 700;
+  color: #fff; letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.loader-sub {
+  font-family: 'Noto Sans Devanagari', sans-serif;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.95rem;
+}
+.loader-bar {
+  width: 200px; height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px; overflow: hidden;
+}
+.loader-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--saffron), var(--green));
+  border-radius: 2px;
+}
+
+/* ── NAVBAR ── */
+.navbar-aivm {
+  background: rgba(28,28,28,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 3px solid transparent;
+  border-image: linear-gradient(90deg, var(--saffron), var(--white), var(--green)) 1;
+  padding: 0.75rem 0;
+  position: sticky; top: 0; z-index: 1000;
+}
+.navbar-brand-aivm {
+  display: flex; align-items: center; gap: 10px; text-decoration: none;
+}
+.brand-icon {
+  width: 40px; height: 40px;
+  background: var(--gradient-saffron);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: #fff;
+}
+.brand-text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.15rem; font-weight: 700;
+  color: #fff; line-height: 1.1;
+}
+.brand-text span {
+  display: block; font-size: 0.63rem; font-weight: 400;
+  font-family: 'Noto Sans Devanagari', sans-serif;
+  color: rgba(255,255,255,0.6); letter-spacing: 0.5px;
+}
+.nav-live-badge {
+  background: var(--green); color: #fff;
+  font-size: 0.65rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px;
+  letter-spacing: 1px; text-transform: uppercase;
+  animation: pulse-green 2s infinite;
+}
+@keyframes pulse-green {
+  0%,100% { box-shadow: 0 0 0 0 rgba(19,136,8,0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(19,136,8,0); }
+}
+.nav-stats-pill {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 4px 14px;
+  color: rgba(255,255,255,0.8);
+  font-size: 0.78rem;
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* ── HERO ── */
+.hero-section {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 70%, #1C1C1C 100%);
+  padding: 80px 0 60px;
+  position: relative; overflow: hidden;
+}
+/* Hero has own gradient background since video was removed */
+.hero-bg-pattern {
+  position: absolute; inset: 0;
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(255,103,19,0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(19,136,8,0.15) 0%, transparent 50%);
+  pointer-events: none;
+}
+.hero-ashoka {
+  position: absolute; right: 5%; top: 50%; transform: translateY(-50%);
+  width: 300px; height: 300px; opacity: 0.04;
+  font-size: 300px; line-height: 1;
+  animation: spin-slow 60s linear infinite;
+}
+@keyframes spin-slow { to { transform: translateY(-50%) rotate(360deg); } }
+.hero-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(2.2rem, 5.5vw, 4rem);
+  font-weight: 700; color: #fff; line-height: 1.1;
+}
+.hero-title .highlight-saffron { color: var(--saffron); }
+.hero-title .highlight-green { color: var(--green-light); }
+.hero-subtitle {
+  font-family: 'Noto Sans Devanagari', sans-serif;
+  color: rgba(255,255,255,0.65);
+  font-size: 1rem; margin-top: 8px;
+}
+.hero-meta {
+  display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px;
+}
+.hero-meta-item {
+  display: flex; align-items: center; gap: 6px;
+  color: rgba(255,255,255,0.7); font-size: 0.85rem;
+}
+.hero-meta-item i { color: var(--saffron); }
+.hero-cta-btn {
+  background: var(--gradient-saffron);
+  color: #fff; border: none;
+  padding: 13px 28px; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem; font-weight: 600;
+  letter-spacing: 0.5px; cursor: pointer;
+  transition: all 0.3s; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 24px;
+}
+.hero-cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255,103,19,0.4);
+  color: #fff;
+}
+
+/* ── STATS STRIP ── */
+.stats-strip {
+  background: linear-gradient(90deg, var(--saffron) 0%, var(--saffron-dark) 50%, var(--green) 100%);
+  padding: 18px 0;
+}
+.stat-item {
+  text-align: center;
+}
+.stat-number {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.9rem; font-weight: 700; color: #fff; line-height: 1;
+}
+.stat-label {
+  font-size: 0.72rem; color: rgba(255,255,255,0.8);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* ── CATEGORY TABS ── */
+.category-bar {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 67px; z-index: 100;
+  overflow-x: auto;
+}
+.category-bar::-webkit-scrollbar { display: none; }
+.cat-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 14px 20px;
+  border: none; background: transparent;
+  font-size: 0.85rem; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.cat-tab:hover { color: var(--saffron); }
+.cat-tab.active {
+  color: var(--saffron);
+  border-bottom-color: var(--saffron);
+}
+.cat-count {
+  background: var(--ash); border-radius: 20px;
+  padding: 1px 7px; font-size: 0.7rem; font-weight: 700;
+}
+.cat-tab.active .cat-count {
+  background: rgba(255,103,19,0.12); color: var(--saffron);
+}
+
+/* ── TRENDING TICKER ── */
+.trending-ticker {
+  background: var(--charcoal); color: rgba(255,255,255,0.9);
+  padding: 8px 0; overflow: hidden; white-space: nowrap;
+}
+.ticker-label {
+  background: var(--saffron);
+  padding: 0 12px; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; margin-right: 16px;
+  color: #fff;
+}
+.ticker-content {
+  display: inline-block;
+  animation: ticker-scroll 30s linear infinite;
+  font-size: 0.82rem;
+}
+@keyframes ticker-scroll {
+  0% { transform: translateX(100vw); }
+  100% { transform: translateX(-100%); }
+}
+.ticker-sep { margin: 0 16px; color: var(--saffron); }
+
+/* ── FEATURED POLL CARD ── */
+.section-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.4rem; font-weight: 700;
+  color: var(--charcoal);
+}
+.section-title span { color: var(--saffron); }
+.section-pill {
+  background: rgba(255,103,19,0.1); color: var(--saffron);
+  padding: 3px 12px; border-radius: 20px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.featured-poll-card {
+  background: var(--charcoal);
+  border-radius: 16px; overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow-card);
+}
+.featured-poll-card .poll-image {
+  width: 100%; max-height: 320px; min-height: 220px;
+  object-fit: contain;
+  background: linear-gradient(135deg, #1C1C1C, #2a2a2a);
+  display: block; opacity: 0.85;
+}
+.featured-poll-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 24px;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+}
+.featured-badge {
+  background: var(--saffron); color: #fff;
+  padding: 3px 10px; border-radius: 4px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 8px;
+  display: inline-block;
+}
+.featured-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.4rem; font-weight: 700; color: #fff;
+}
+.featured-meta { color: rgba(255,255,255,0.6); font-size: 0.8rem; }
+
+/* ── POLL CARD ── */
+.poll-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden; transition: all 0.3s;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.poll-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(255,103,19,0.3);
+}
+.poll-card-img {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  background: linear-gradient(135deg, #f4f4f4, #e8e8e8);
+  display: block;
+  /* Uniform area - image scales to fit without cropping */
+}
+.poll-card-img-placeholder {
+  width: 100%; height: 180px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3rem;
+  background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+}
+/* All poll cards in grid have equal image area */
+.poll-card {
+  display: flex;
+  flex-direction: column;
+}
+.poll-card .poll-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.poll-card .vote-btn {
+  margin-top: auto;
+}
+.poll-card-body { padding: 16px; }
+.poll-category-badge {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px;
+  padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
+  display: inline-block; margin-bottom: 8px;
+}
+.cat-politics { background: rgba(0,0,128,0.08); color: var(--navy); }
+.cat-cricket { background: rgba(19,136,8,0.08); color: var(--green); }
+.cat-bollywood { background: rgba(255,103,19,0.08); color: var(--saffron); }
+.cat-social { background: rgba(138,43,226,0.08); color: #8A2BE2; }
+.cat-general { background: rgba(100,100,100,0.08); color: #666; }
+
+.poll-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem; font-weight: 600; color: var(--charcoal);
+  margin-bottom: 12px; line-height: 1.4;
+}
+.poll-vote-count {
+  font-size: 0.78rem; color: var(--muted);
+  display: flex; align-items: center; gap: 4px;
+}
+.poll-vote-count strong { color: var(--saffron); }
+.vote-btn {
+  background: var(--gradient-saffron);
+  color: #fff; border: none;
+  width: 100%; padding: 10px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem; font-weight: 600;
+  letter-spacing: 0.3px; cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 12px;
+}
+.vote-btn:hover {
+  box-shadow: 0 4px 16px rgba(255,103,19,0.35);
+  transform: translateY(-1px);
+}
+.voted-btn {
+  background: linear-gradient(135deg, var(--green), #1BA30D);
+}
+.voted-btn:hover {
+  box-shadow: 0 4px 16px rgba(19,136,8,0.35);
+}
+
+/* ── MODAL ── */
+.modal-aivm .modal-content {
+  border-radius: 16px; border: none;
+  overflow: hidden;
+}
+.modal-aivm .modal-header {
+  background: var(--charcoal);
+  border: none; padding: 20px 24px;
+}
+.modal-aivm .modal-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.2rem; font-weight: 700; color: #fff;
+}
+.modal-aivm .modal-body { padding: 24px; }
+.modal-aivm .btn-close { filter: invert(1); }
+
+/* ── VOTING FORM ── */
+.voter-input {
+  border: 2px solid var(--border); border-radius: 8px;
+  padding: 12px 16px; width: 100%;
+  font-size: 0.9rem; transition: border-color 0.2s;
+  background: #fff;
+}
+.voter-input:focus {
+  outline: none; border-color: var(--saffron);
+  box-shadow: 0 0 0 3px rgba(255,103,19,0.1);
+}
+
+.option-radio {
+  display: none;
+}
+.option-label {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border: 2px solid var(--border);
+  border-radius: 10px; cursor: pointer;
+  transition: all 0.25s; margin-bottom: 8px;
+  font-weight: 500; font-size: 0.9rem;
+}
+.option-label:hover {
+  border-color: var(--saffron);
+  background: rgba(255,103,19,0.04);
+}
+.option-radio:checked + .option-label {
+  border-color: var(--saffron);
+  background: rgba(255,103,19,0.06);
+  color: var(--saffron-dark);
+}
+.option-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.2s;
+}
+.option-radio:checked + .option-label .option-dot {
+  border-color: var(--saffron); background: var(--saffron);
+}
+.option-radio:checked + .option-label .option-dot::after {
+  content: ''; width: 6px; height: 6px;
+  border-radius: 50%; background: #fff;
+}
+.option-img {
+  width: 40px; height: 40px; object-fit: cover;
+  border-radius: 6px; flex-shrink: 0;
+}
+
+/* ── RESULT BARS ── */
+.result-bar-wrap { margin-bottom: 12px; }
+.result-bar-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 4px; font-size: 0.85rem; font-weight: 600;
+}
+.result-pct { font-weight: 700; color: var(--saffron); }
+.result-bar-track {
+  height: 10px; background: var(--ash);
+  border-radius: 20px; overflow: hidden;
+}
+.result-bar-fill {
+  height: 100%; border-radius: 20px; width: 0%;
+  transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+}
+.result-winner .result-bar-fill {
+  background: var(--gradient-saffron);
+}
+.result-bar-fill {
+  background: linear-gradient(90deg, var(--green), #1BA30D);
+}
+
+/* ── CONFETTI CANVAS ── */
+#confetti-canvas {
+  position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+}
+
+/* ── VOTE SUCCESS ── */
+.vote-success {
+  text-align: center; padding: 20px 0;
+}
+.vote-success-icon {
+  font-size: 4rem; line-height: 1;
+  animation: bounce-in 0.6s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes bounce-in {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.vote-success-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.4rem; font-weight: 700;
+  color: var(--green); margin: 8px 0;
+}
+.vote-success-sub {
+  color: var(--muted); font-size: 0.85rem;
+}
+
+/* ── LEADERBOARD ── */
+.leaderboard-card {
+  background: var(--card-bg); border-radius: 12px;
+  box-shadow: var(--shadow-card); overflow: hidden;
+  border: 1px solid var(--border);
+}
+.leaderboard-header {
+  background: var(--charcoal); padding: 16px 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.leaderboard-header h6 {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem; font-weight: 700; color: #fff; margin: 0;
+}
+.lb-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+.lb-row:hover { background: var(--ash); }
+.lb-rank {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700;
+  flex-shrink: 0;
+}
+.rank-1 { background: #FFD700; color: #1C1C1C; }
+.rank-2 { background: #C0C0C0; color: #1C1C1C; }
+.rank-3 { background: #CD7F32; color: #fff; }
+.rank-n { background: var(--ash); color: var(--muted); }
+.lb-title { font-size: 0.83rem; font-weight: 600; flex: 1; }
+.lb-votes { font-size: 0.78rem; color: var(--saffron); font-weight: 700; }
+
+/* ── LIVE INDICATOR ── */
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #22C55E;
+  animation: pulse-live 1.5s infinite;
+  display: inline-block;
+}
+@keyframes pulse-live {
+  0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+}
+
+/* ── FOOTER ── */
+footer {
+  background: var(--charcoal);
+  padding: 48px 0 24px;
+  border-top: 3px solid transparent;
+  border-image: linear-gradient(90deg, var(--saffron), var(--white), var(--green)) 1;
+}
+.footer-brand {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.3rem; font-weight: 700; color: #fff;
+}
+.footer-tagline {
+  font-family: 'Noto Sans Devanagari', sans-serif;
+  color: rgba(255,255,255,0.5); font-size: 0.85rem;
+}
+.footer-link { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.85rem; }
+.footer-link:hover { color: var(--saffron); }
+.footer-divider { border-color: rgba(255,255,255,0.1); }
+.footer-bottom { color: rgba(255,255,255,0.35); font-size: 0.78rem; }
+
+/* ── TOAST ── */
+.toast-aivm {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--charcoal); color: #fff;
+  padding: 14px 20px; border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  z-index: 9997; font-size: 0.85rem;
+  display: flex; align-items: center; gap: 10px;
+  transform: translateX(120%);
+  max-width: 320px;
+}
+.toast-aivm.show { transform: translateX(0); }
+.toast-aivm.success i { color: var(--green); }
+.toast-aivm.error i { color: #EF4444; }
+.toast-aivm.info i { color: var(--saffron); }
+
+/* ── RATING STARS ── */
+.star-option { display: none; }
+.star-label {
+  font-size: 2rem; cursor: pointer;
+  color: #D1D5DB; transition: color 0.15s;
+}
+.star-label:hover,
+.star-label:hover ~ .star-label { color: #FFD700; }
+.star-group:has(.star-option:checked + .star-label) .star-label { color: #FFD700; }
+
+/* ── AUTH MODAL ── */
+.auth-tabs { display:flex; border-bottom:1px solid var(--border); margin-bottom:20px; }
+.auth-tab-btn { flex:1; padding:10px; border:none; background:none; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
+.auth-tab-btn.active { color:var(--saffron); border-bottom-color:var(--saffron); }
+.auth-form { display:none; }
+.auth-form.active { display:block; }
+.auth-divider { display:flex; align-items:center; gap:12px; margin:16px 0; color:var(--muted); font-size:0.8rem; }
+.auth-divider::before,.auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+.btn-google-auth { width:100%; padding:11px; border:1.5px solid var(--border); border-radius:8px; background:#fff; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s; }
+.btn-google-auth:hover { background:#f8f8f8; border-color:#bbb; }
+.btn-google-auth img { width:20px; height:20px; }
+@media (max-width: 768px) {
+  .hero-section { padding: 50px 0 40px; }
+  .hero-title { font-size: 2rem; }
+  .hero-ashoka { display: none; }
+  .stat-number { font-size: 1.5rem; }
+}
+
+/* ── RESPONSIVE ── */
+.fade-up { opacity: 0; transform: translateY(30px); }
+/* poll-card starts visible; JS adds anim-ready class during animation */
+.poll-card { opacity: 1; transform: none; }
+.poll-card.anim-ready { opacity: 0; transform: translateY(20px); }
+
+/* ── LOADING SKELETON ── */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skel-card { height: 280px; border-radius: 12px; }
+
+/* Ashoka Chakra SVG spinner */
+.ashoka-spin {
+  width: 32px; height: 32px;
+  animation: ashoka-rotate 3s linear infinite;
+  transform-origin: center center;
+  display: block;
+}
+@keyframes ashoka-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+</style>
+</head>
+<body>
+
+<!-- Video background removed for performance -->
+<div id="loader">
+  <div class="loader-flag">
+    <span class="flag-s"></span>
+    <span class="flag-w">
+      <svg class="ashoka-spin" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="38" stroke="#000080" stroke-width="3.5" fill="none"/>
+        <circle cx="50" cy="50" r="5" fill="#000080"/>
+        <circle cx="50" cy="50" r="2" fill="#fff"/>
+        <!-- 24 spokes computed at 15° intervals -->
+        <g stroke="#000080" stroke-width="1.8" stroke-linecap="round">
+          <line x1="50" y1="45" x2="50" y2="14"/>
+          <line x1="58.04" y1="45.52" x2="65.98" y2="16.54"/>
+          <line x1="64.9" y1="47.5" x2="79.28" y2="22.5"/>
+          <line x1="69.64" y1="51.34" x2="89.28" y2="33.82"/>
+          <line x1="71.5" y1="56.5" x2="93.5" y2="48.46"/>
+          <line x1="70.48" y1="62.04" x2="91.46" y2="62.98"/>
+          <line x1="66.5" y1="66.5" x2="83.5" y2="79.28"/>
+          <line x1="60.3" y1="69.64" x2="70.18" y2="89.28"/>
+          <line x1="53.5" y1="71" x2="57.04" y2="93"/>
+          <line x1="46.5" y1="71" x2="42.96" y2="93"/>
+          <line x1="39.7" y1="69.64" x2="29.82" y2="89.28"/>
+          <line x1="33.5" y1="66.5" x2="16.5" y2="79.28"/>
+          <line x1="29.52" y1="62.04" x2="8.54" y2="62.98"/>
+          <line x1="28.5" y1="56.5" x2="6.5" y2="48.46"/>
+          <line x1="30.36" y1="51.34" x2="10.72" y2="33.82"/>
+          <line x1="35.1" y1="47.5" x2="20.72" y2="22.5"/>
+          <line x1="41.96" y1="45.52" x2="34.02" y2="16.54"/>
+          <!-- short marker spokes between main spokes -->
+          <line x1="50" y1="44" x2="53.92" y2="30.46"/>
+          <line x1="56.08" y1="45.08" x2="63.08" y2="32.46"/>
+          <line x1="61.32" y1="47.5" x2="71.82" y2="37.46"/>
+          <line x1="65.08" y1="51.5" x2="78.08" y2="45.46"/>
+          <line x1="66.5" y1="56.5" x2="80.5" y2="56.5"/>
+          <line x1="65.5" y1="61.5" x2="78.5" y2="65.5"/>
+          <line x1="62.5" y1="65.5" x2="73.5" y2="72.5"/>
+        </g>
+      </svg>
+    </span>
+    <span class="flag-g"></span>
+  </div>
+  <div class="loader-text">All India Voting Machine</div>
+  <div class="loader-sub">भारत की आवाज़ — Loading India's Pulse...</div>
+  <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+</div>
+
+<!-- LOADER -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- TOAST -->
+<div class="toast-aivm" id="toastMsg">
+  <i class="bi bi-check-circle-fill"></i>
+  <span id="toastText">Success!</span>
+</div>
+
+<!-- NAVBAR -->
+<nav class="navbar-aivm">
+  <div class="container d-flex align-items-center justify-content-between">
+    <a href="#" class="navbar-brand-aivm">
+      <div class="brand-icon" style="background:none;padding:0;overflow:hidden;">
+        <img src="https://i.postimg.cc/kGBd6fMr/Chat-GPT-Image-Jun-25-2026-05-10-55-PM.png" alt="AIVM Logo" style="width:40px;height:40px;object-fit:contain;border-radius:8px;" onerror="this.parentElement.innerHTML='🗳️';this.parentElement.style.background='var(--gradient-saffron)';this.parentElement.style.fontSize='1.2rem';this.parentElement.style.color='#fff';"/>
+      </div>
+      <div class="brand-text">
+        All India Voting Machine
+        <span>भारत की आवाज़ — Daily Trending Votes</span>
+      </div>
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="nav-live-badge"><span class="live-dot me-1"></span>LIVE</span>
+      <span class="nav-stats-pill d-none d-md-flex">
+        <i class="bi bi-people-fill text-warning"></i>
+        <span id="navVoterCount">0</span> Votes Today
+      </span>
+      <button class="btn btn-sm btn-outline-warning" id="navAuthBtn" onclick="openAuthModal()">
+        <i class="bi bi-person-fill me-1"></i>Sign In
+      </button>
+      <button class="btn btn-sm btn-outline-light" onclick="scrollToPolls()">
+        <i class="bi bi-bar-chart-fill me-1"></i>Vote Now
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- TRENDING TICKER -->
+<div class="trending-ticker">
+  <div class="container d-flex align-items-center overflow-hidden">
+    <span class="ticker-label flex-shrink-0">🔥 TRENDING</span>
+    <div class="ticker-content" id="tickerContent">Loading trending polls...</div>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="hero-bg-pattern"></div>
+  <div class="hero-ashoka">☸</div>
+  <div class="container position-relative" style="z-index:2;">
+    <div class="row align-items-center">
+      <div class="col-lg-7">
+        <p class="hero-meta-item mb-2" style="color:rgba(255,255,255,0.5);font-size:0.8rem;">
+          <span class="live-dot me-2"></span> Real-time voting • <span id="heroActivePolls">0</span> active polls
+        </p>
+        <h1 class="hero-title">
+          <span class="highlight-saffron">भारत</span> की<br/>
+          <span class="highlight-green">Digital</span> आवाज़
+        </h1>
+        <p class="hero-subtitle">Daily Trending Votes & Responses of Indians</p>
+        <div class="hero-meta">
+          <span class="hero-meta-item"><i class="bi bi-shield-check"></i> Verified Voting</span>
+          <span class="hero-meta-item"><i class="bi bi-graph-up-arrow"></i> Real-time Results</span>
+          <span class="hero-meta-item"><i class="bi bi-people"></i> <span id="heroTotalVotes">0</span>+ Total Votes</span>
+        </div>
+        <a href="#polls-section" class="hero-cta-btn">
+          <i class="bi bi-hand-index-fill"></i> Cast Your Vote
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS STRIP -->
+<div class="stats-strip">
+  <div class="container">
+    <div class="row text-center g-0">
+      <div class="col-3 stat-item">
+        <div class="stat-number" id="statPolls">0</div>
+        <div class="stat-label">Active Polls</div>
+      </div>
+      <div class="col-3 stat-item">
+        <div class="stat-number" id="statVotes">0</div>
+        <div class="stat-label">Total Votes</div>
+      </div>
+      <div class="col-3 stat-item">
+        <div class="stat-number" id="statVoters">0</div>
+        <div class="stat-label">Unique Voters</div>
+      </div>
+      <div class="col-3 stat-item">
+        <div class="stat-number" id="statOnline">0</div>
+        <div class="stat-label">Online Now</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY BAR -->
+<div class="category-bar">
+  <div class="container">
+    <div class="d-flex">
+      <button class="cat-tab active" data-cat="all" onclick="filterCategory('all', this)">
+        <i class="bi bi-grid-3x3-gap-fill"></i> All Polls
+        <span class="cat-count" id="catCount-all">0</span>
+      </button>
+      <button class="cat-tab" data-cat="Politics & Government" onclick="filterCategory('Politics & Government', this)">
+        <i class="bi bi-flag-fill"></i> Politics
+        <span class="cat-count" id="catCount-politics">0</span>
+      </button>
+      <button class="cat-tab" data-cat="Sports & Cricket" onclick="filterCategory('Sports & Cricket', this)">
+        <i class="bi bi-trophy-fill"></i> Cricket
+        <span class="cat-count" id="catCount-sports">0</span>
+      </button>
+      <button class="cat-tab" data-cat="Entertainment & Bollywood" onclick="filterCategory('Entertainment & Bollywood', this)">
+        <i class="bi bi-camera-reels-fill"></i> Bollywood
+        <span class="cat-count" id="catCount-ent">0</span>
+      </button>
+      <button class="cat-tab" data-cat="Social Issues & Culture" onclick="filterCategory('Social Issues & Culture', this)">
+        <i class="bi bi-people-fill"></i> Social
+        <span class="cat-count" id="catCount-social">0</span>
+      </button>
+      <button class="cat-tab" data-cat="General" onclick="filterCategory('General', this)">
+        <i class="bi bi-three-dots"></i> Other
+        <span class="cat-count" id="catCount-general">0</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container py-5" id="polls-section">
+  <div class="row g-4">
+
+    <!-- LEFT: POLLS GRID -->
+    <div class="col-lg-8">
+
+      <!-- Featured Poll -->
+      <div id="featuredSection" class="mb-4"></div>
+
+      <!-- Section Header -->
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+          <span class="section-pill mb-1">🗳️ ALL POLLS</span>
+          <h2 class="section-title mt-1">Trending <span>Votes</span></h2>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="live-dot"></span>
+          <small class="text-muted">Updates live</small>
+        </div>
+      </div>
+
+      <!-- Polls Grid -->
+      <div class="row g-3" id="pollsGrid">
+        <div class="col-12 text-center py-5">
+          <div class="spinner-border text-warning" style="width:3rem;height:3rem;"></div>
+          <p class="mt-3 text-muted">Loading polls from India...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: SIDEBAR -->
+    <div class="col-lg-4">
+
+      <!-- Trending Leaderboard -->
+      <div class="leaderboard-card mb-4 fade-up">
+        <div class="leaderboard-header">
+          <i class="bi bi-bar-chart-fill text-warning"></i>
+          <h6>🔥 Trending Polls</h6>
+          <span class="live-dot ms-auto"></span>
+        </div>
+        <div id="trendingList">
+          <div class="p-3 text-center text-muted" style="font-size:0.82rem;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Top Voters -->
+      <div class="leaderboard-card mb-4 fade-up">
+        <div class="leaderboard-header">
+          <i class="bi bi-people-fill text-success"></i>
+          <h6>🏆 Top Voters</h6>
+        </div>
+        <div id="topVotersList">
+          <div class="p-3 text-center text-muted" style="font-size:0.82rem;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Category Breakdown -->
+      <div class="leaderboard-card mb-4 fade-up">
+        <div class="leaderboard-header">
+          <i class="bi bi-pie-chart-fill text-info"></i>
+          <h6>📊 Votes by Category</h6>
+        </div>
+        <div id="categoryBreakdown" class="p-3">
+          <div class="text-center text-muted" style="font-size:0.82rem;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Real-time Activity Feed -->
+      <div class="leaderboard-card fade-up">
+        <div class="leaderboard-header">
+          <i class="bi bi-activity text-danger"></i>
+          <h6>⚡ Live Activity</h6>
+          <span class="live-dot ms-auto"></span>
+        </div>
+        <div id="activityFeed" style="max-height:300px;overflow-y:auto;">
+          <div class="p-3 text-center text-muted" style="font-size:0.82rem;">Waiting for activity...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="footer-brand d-flex align-items-center gap-2">
+          <img src="https://i.postimg.cc/kGBd6fMr/Chat-GPT-Image-Jun-25-2026-05-10-55-PM.png" alt="AIVM Logo" style="width:32px;height:32px;object-fit:contain;border-radius:6px;" onerror="this.style.display='none'"/>
+          All India Voting Machine
+        </div>
+        <div class="footer-tagline mt-1">भारत की आवाज़ — Voice of India</div>
+        <p class="mt-3" style="color:rgba(255,255,255,0.4);font-size:0.82rem;">
+          A platform for every Indian to voice their opinion on matters that shape the nation.
+        </p>
+      </div>
+      <div class="col-md-2">
+        <div style="color:rgba(255,255,255,0.6);font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Categories</div>
+        <div class="d-flex flex-column gap-2">
+          <a href="#" class="footer-link">🏛️ Politics</a>
+          <a href="#" class="footer-link">🏏 Cricket</a>
+          <a href="#" class="footer-link">🎬 Bollywood</a>
+          <a href="#" class="footer-link">👥 Social Issues</a>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div style="color:rgba(255,255,255,0.6);font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Quick Links</div>
+        <div class="d-flex flex-column gap-2">
+          <a href="#" class="footer-link">📊 Trending Polls</a>
+          <a href="#" class="footer-link">🏆 Leaderboard</a>
+          <a href="admin.html" class="footer-link">⚙️ Admin Panel</a>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div style="color:rgba(255,255,255,0.6);font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Live Stats</div>
+        <div class="d-flex flex-column gap-2">
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">🗳️ Total Votes: <strong style="color:var(--saffron)" id="footerVotes">—</strong></span>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;">📋 Active Polls: <strong style="color:var(--green-light)" id="footerPolls">—</strong></span>
+          <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;"><span class="live-dot me-1"></span>Real-time data</span>
+        </div>
+      </div>
+    </div>
+    <hr class="footer-divider mt-4 mb-3"/>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span class="footer-bottom">© 2024 All India Voting Machine. जय हिन्द! 🇮🇳</span>
+      <span class="footer-bottom">Made with ❤️ for India</span>
+    </div>
+  </div>
+</footer>
+
+<!-- AUTH MODAL -->
+<div class="modal fade modal-aivm" id="authModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">🗳️ Sign In to Vote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Google Sign In -->
+        <button class="btn-google-auth mb-3" onclick="signInGoogle()">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"/>
+          Continue with Google
+        </button>
+        <div class="auth-divider">or use email</div>
+        <!-- Tabs -->
+        <div class="auth-tabs">
+          <button class="auth-tab-btn active" onclick="switchAuthTab('login', this)">Sign In</button>
+          <button class="auth-tab-btn" onclick="switchAuthTab('signup', this)">Create Account</button>
+        </div>
+        <!-- Login Form -->
+        <div class="auth-form active" id="auth-login">
+          <div class="mb-3">
+            <label class="form-label-admin" style="font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;">Email</label>
+            <input type="email" id="authLoginEmail" class="voter-input" placeholder="your@email.com"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label-admin" style="font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;">Password</label>
+            <input type="password" id="authLoginPass" class="voter-input" placeholder="••••••••"/>
+          </div>
+          <button class="vote-btn" onclick="signInEmail()" style="margin-top:0;">Sign In</button>
+        </div>
+        <!-- Signup Form -->
+        <div class="auth-form" id="auth-signup">
+          <div class="mb-3">
+            <label class="form-label-admin" style="font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;">Email</label>
+            <input type="email" id="authSignupEmail" class="voter-input" placeholder="your@email.com"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label-admin" style="font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;">Password (min 6 chars)</label>
+            <input type="password" id="authSignupPass" class="voter-input" placeholder="••••••••"/>
+          </div>
+          <button class="vote-btn" onclick="signUpEmail()" style="margin-top:0;">Create Account</button>
+        </div>
+        <p style="font-size:0.74rem;color:var(--muted);text-align:center;margin-top:14px;">
+          Signing in lets you vote seamlessly without entering your email every time.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VOTE MODAL -->
+<div class="modal fade modal-aivm" id="voteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="voteModalTitle">Cast Your Vote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="voteModalBody">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://rziqbgttxzlvmzsgyeov.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6aXFiZ3R0eHpsdm16c2d5ZW92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA4NTQ1MDAsImV4cCI6MjA2NjQzMDUwMH0.sb_publishable_dvLA7nRLEueWOCS6Cf74tw_fD4kl3hG';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let allPolls = [];
+let currentCategory = 'all';
+let votedPolls = JSON.parse(localStorage.getItem('aivm_voted') || '{}');
+let voteModal = null;
+let currentPoll = null;
+let onlineCount = Math.floor(Math.random() * 800) + 200;
+
+// Safe GSAP wrapper — graceful fallback if GSAP not yet loaded
+function safeGsap(fn) {
+  if (typeof gsap !== 'undefined') { fn(); }
+  else { window.addEventListener('load', fn, { once: true }); }
+}
+
+// ═══════════════════════════════════════════════════════
+// LOADER ANIMATION
+// ═══════════════════════════════════════════════════════
+// Fast loader: hide after DOM + short delay, don't wait for all network resources
+document.addEventListener('DOMContentLoaded', () => {
+  const fill = document.getElementById('loaderFill');
+  let w = 0;
+  const iv = setInterval(() => {
+    w += Math.random() * 25 + 10;
+    if (w >= 100) { w = 100; clearInterval(iv); }
+    fill.style.width = w + '%';
+    if (w >= 100) setTimeout(hideLoader, 200);
+  }, 80);
+});
+
+function hideLoader() {
+  const loaderEl = document.getElementById('loader');
+  safeGsap(() => {
+    gsap.to('#loader', {
+      opacity: 0, duration: 0.4, ease: 'power2.out',
+      onComplete: () => {
+        loaderEl.style.display = 'none';
+        runEntryAnimations();
+      }
+    });
+  });
+  // Fallback if GSAP never loads
+  setTimeout(() => { if (loaderEl) loaderEl.style.display = 'none'; }, 1500);
+}
+
+// ═══════════════════════════════════════════════════════
+// ENTRY ANIMATIONS
+// ═══════════════════════════════════════════════════════
+function runEntryAnimations() {
+  if (typeof gsap === 'undefined') return; // GSAP not loaded yet, skip
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.from('.hero-title', { y: 40, opacity: 0, duration: 0.8, ease: 'power3.out' });
+  gsap.from('.hero-subtitle', { y: 30, opacity: 0, duration: 0.8, delay: 0.2, ease: 'power3.out' });
+  gsap.from('.hero-meta', { y: 20, opacity: 0, duration: 0.6, delay: 0.4 });
+  gsap.from('.hero-cta-btn', { scale: 0.8, opacity: 0, duration: 0.6, delay: 0.6, ease: 'back.out(1.7)' });
+  gsap.from('.stats-strip .stat-item', {
+    y: 30, opacity: 0, duration: 0.5, stagger: 0.1, delay: 0.2
+  });
+  ScrollTrigger.batch('.fade-up', {
+    onEnter: els => gsap.to(els, { opacity: 1, y: 0, duration: 0.6, stagger: 0.15 })
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+async function init() {
+  trackVisitor();
+  await loadPolls();
+  loadLeaderboard();
+  loadTopVoters();
+  updateCategoryBreakdown();
+  setupRealtime();
+  updateOnlineCounter();
+  setInterval(updateOnlineCounter, 8000);
+  voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
+}
+
+// ═══════════════════════════════════════════════════════
+// TRACK VISITOR
+// ═══════════════════════════════════════════════════════
+async function trackVisitor() {
+  const sessionId = localStorage.getItem('aivm_session') || ('sess_' + Date.now() + Math.random().toString(36).slice(2));
+  localStorage.setItem('aivm_session', sessionId);
+  await sb.from('visitors').insert({
+    session_id: sessionId,
+    user_agent: navigator.userAgent,
+    referrer: document.referrer || 'direct',
+    page_visited: window.location.pathname
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// LOAD POLLS
+// ═══════════════════════════════════════════════════════
+async function loadPolls() {
+  const { data: polls, error } = await sb.from('polls')
+    .select('*, poll_options(*)')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) { showToast('error', 'Could not load polls. Please refresh.'); return; }
+  allPolls = polls || [];
+  renderPolls(allPolls);
+  updateStats();
+  updateCategoryCounts();
+  updateTicker();
+  updateHeroStats();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER POLLS
+// ═══════════════════════════════════════════════════════
+function renderPolls(polls) {
+  const grid = document.getElementById('pollsGrid');
+  const featSec = document.getElementById('featuredSection');
+
+  const featured = polls.find(p => p.is_featured);
+  if (featured) {
+    featSec.innerHTML = buildFeaturedCard(featured);
+    gsap.from('#featuredSection .featured-poll-card', { y: 40, opacity: 0, duration: 0.8 });
+  } else { featSec.innerHTML = ''; }
+
+  const nonFeatured = polls.filter(p => !p.is_featured);
+  if (!nonFeatured.length) {
+    grid.innerHTML = `<div class="col-12 text-center py-5 text-muted">
+      <div style="font-size:3rem;">🗳️</div>
+      <p class="mt-2">No polls available in this category yet.<br/>Check back soon!</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = nonFeatured.map(p => buildPollCard(p)).join('');
+
+  // Add anim-ready then animate in
+  const cards = grid.querySelectorAll('.poll-card');
+  cards.forEach(c => c.classList.add('anim-ready'));
+  gsap.to('#pollsGrid .poll-card', {
+    opacity: 1, y: 0, duration: 0.5,
+    stagger: 0.08, ease: 'power2.out',
+    onComplete: () => cards.forEach(c => c.classList.remove('anim-ready'))
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD FEATURED CARD
+// ═══════════════════════════════════════════════════════
+function buildFeaturedCard(poll) {
+  const total = poll.total_votes || 0;
+  const hasVoted = !!votedPolls[poll.id];
+  return `
+  <div class="featured-poll-card position-relative mb-2">
+    ${poll.image_url
+      ? `<img src="${poll.image_url}" class="poll-image" alt="${esc(poll.title)}" loading="lazy" onerror="this.style.display='none'">`
+      : `<div class="poll-image d-flex align-items-center justify-content-center" style="background:linear-gradient(135deg,#1C1C1C,#333)">
+           <span style="font-size:5rem">${catEmoji(poll.category)}</span>
+         </div>`}
+    <div class="featured-poll-overlay">
+      <span class="featured-badge">⭐ Featured Poll</span>
+      <div class="featured-title">${esc(poll.title)}</div>
+      <div class="featured-meta mt-1">
+        ${catEmoji(poll.category)} ${poll.category} • 
+        🗳️ <strong style="color:var(--saffron)">${fmtNum(total)}</strong> Votes
+      </div>
+      <button class="vote-btn ${hasVoted ? 'voted-btn' : ''} mt-3" style="width:auto;padding:10px 28px;" onclick="openVoteModal('${poll.id}')">
+        ${hasVoted ? '✅ View Results' : '🗳️ Vote Now'}
+      </button>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD POLL CARD
+// ═══════════════════════════════════════════════════════
+function buildPollCard(poll) {
+  const total = poll.total_votes || 0;
+  const hasVoted = !!votedPolls[poll.id];
+  const catClass = getCatClass(poll.category);
+  return `
+  <div class="col-md-6 col-12">
+    <div class="poll-card h-100" onclick="openVoteModal('${poll.id}')">
+      ${poll.image_url
+        ? `<img src="${poll.image_url}" class="poll-card-img" alt="${esc(poll.title)}" loading="lazy" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div class=\\'poll-card-img-placeholder\\'>' + catEmoji('${poll.category}') + '</div>')">`
+        : `<div class="poll-card-img-placeholder" style="background:linear-gradient(135deg,#f0f0f0,#e8e8e8)">${catEmoji(poll.category)}</div>`}
+      <div class="poll-card-body">
+        <span class="poll-category-badge ${catClass}">${catEmoji(poll.category)} ${poll.category}</span>
+        <div class="poll-title">${esc(poll.title)}</div>
+        <div class="poll-vote-count">
+          <i class="bi bi-people-fill"></i>
+          <strong>${fmtNum(total)}</strong> votes cast
+          ${poll.ends_at ? `· Ends ${new Date(poll.ends_at).toLocaleDateString('en-IN')}` : ''}
+        </div>
+        <button class="vote-btn ${hasVoted ? 'voted-btn' : ''}">
+          ${hasVoted ? '✅ You Voted · View Results' : '🗳️ Cast Your Vote'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// OPEN VOTE MODAL — BUG FIX: always fresh-fetch poll+options
+// ═══════════════════════════════════════════════════════
+async function openVoteModal(pollId) {
+  const body = document.getElementById('voteModalBody');
+  const titleEl = document.getElementById('voteModalTitle');
+
+  // Ensure modal is initialized (init() may not have run yet if called very early)
+  if (!voteModal) {
+    voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
+  }
+
+  // Show loading state immediately so modal opens fast
+  titleEl.textContent = 'Loading…';
+  body.innerHTML = `<div class="text-center py-5">
+    <div class="spinner-border text-warning" style="width:2.5rem;height:2.5rem;"></div>
+    <p class="mt-3 text-muted" style="font-size:0.85rem;">Loading poll…</p>
+  </div>`;
+  voteModal.show();
+
+  // Always fresh-fetch to guarantee poll_options are loaded
+  const { data: freshPoll, error } = await sb.from('polls')
+    .select('*, poll_options(*)')
+    .eq('id', pollId)
+    .single();
+
+  if (error || !freshPoll) {
+    console.error('Poll load error:', error);
+    body.innerHTML = `<div class="text-center py-4 text-danger">
+      <i class="bi bi-exclamation-triangle-fill" style="font-size:2rem;"></i>
+      <p class="mt-2">Could not load poll. Please try again.</p>
+      <small class="text-muted">${error?.message || 'Unknown error'}</small>
+    </div>`;
+    return;
+  }
+
+  console.log('Poll loaded:', freshPoll.title, '| Options:', freshPoll.poll_options?.length);
+
+  currentPoll = freshPoll;
+  // Sync back into allPolls array
+  const idx = allPolls.findIndex(p => p.id === pollId);
+  if (idx !== -1) allPolls[idx] = freshPoll;
+
+  // Increment view count (non-blocking)
+  sb.rpc('increment_view_count', { poll_uuid: pollId }).catch(() => {});
+
+  titleEl.textContent = currentPoll.title;
+  const hasVoted = !!votedPolls[pollId];
+
+  if (hasVoted) {
+    body.innerHTML = await buildResultsHTML(currentPoll, votedPolls[pollId]);
+    animateResultBars();
+    return;
+  }
+
+  // Verify options exist before showing form
+  if (!currentPoll.poll_options || currentPoll.poll_options.length === 0) {
+    body.innerHTML = `<div class="text-center py-4 text-muted">
+      <div style="font-size:2.5rem;">🗳️</div>
+      <p class="mt-2">This poll has no options yet. Check back soon!</p>
+    </div>`;
+    return;
+  }
+
+  // Show voting form
+  body.innerHTML = buildVotingForm(currentPoll);
+
+  // GSAP animate options
+  gsap.from('.option-label', {
+    x: -20, opacity: 0, duration: 0.4,
+    stagger: 0.1, ease: 'power2.out', delay: 0.2
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD VOTING FORM
+// ═══════════════════════════════════════════════════════
+function buildVotingForm(poll) {
+  const opts = poll.poll_options || [];
+  const total = poll.total_votes || 0;
+  let optionsHTML = '';
+
+  if (poll.poll_type === 'rating') {
+    optionsHTML = `
+    <div class="mb-3">
+      <label class="fw-600 mb-2 d-block">Rate this:</label>
+      <div class="star-group d-flex flex-row-reverse justify-content-end gap-2">
+        ${[5,4,3,2,1].map(n => `
+          <input type="radio" name="vote_opt" id="star${n}" value="${opts[n-1]?.id || n}" class="star-option"/>
+          <label for="star${n}" class="star-label">★</label>
+        `).join('')}
+      </div>
+    </div>`;
+  } else {
+    optionsHTML = opts.map((opt, i) => `
+    <div>
+      <input type="radio" name="vote_opt" id="opt_${opt.id}" value="${opt.id}" class="option-radio"/>
+      <label for="opt_${opt.id}" class="option-label">
+        ${opt.option_image_url ? `<img src="${opt.option_image_url}" class="option-img" onerror="this.remove()"/>` : ''}
+        <div class="option-dot"></div>
+        <span>${esc(opt.option_text)}</span>
+      </label>
+    </div>`).join('');
+  }
+
+  return `
+  ${poll.description ? `<p class="text-muted mb-3" style="font-size:0.87rem;">${esc(poll.description)}</p>` : ''}
+  <div class="d-flex align-items-center gap-2 mb-3 p-2 rounded" style="background:rgba(255,103,19,0.06);border:1px solid rgba(255,103,19,0.15);">
+    <i class="bi bi-people-fill text-warning"></i>
+    <span style="font-size:0.82rem;color:var(--muted);">
+      <strong style="color:var(--saffron)">${fmtNum(total)}</strong> Indians have voted
+    </span>
+    <span class="live-dot ms-auto"></span>
+  </div>
+
+  <div class="mb-4" id="optionsContainer">${optionsHTML}</div>
+
+  <div class="mb-3">
+    <label class="fw-600 mb-1" style="font-size:0.85rem;">📧 Your Gmail (prevents duplicate votes)</label>
+    <input type="email" id="voterEmail" placeholder="yourname@gmail.com" class="voter-input" autocomplete="email" value="${window._fbCurrentUser?.email||''}" ${window._fbCurrentUser?'readonly':''} />
+    <div class="mt-1" style="font-size:0.75rem;color:var(--muted);">
+      ${window._fbCurrentUser
+        ? `<i class="bi bi-shield-check-fill text-success me-1"></i>Signed in as <strong>${window._fbCurrentUser.email}</strong>`
+        : `<i class="bi bi-lock-fill me-1"></i>Your email is only used to prevent duplicate votes. <a href="#" onclick="openAuthModal();return false;" style="color:var(--saffron)">Sign in</a> for easier voting.`
+      }
+    </div>
+  </div>
+  <div class="mb-4">
+    <label class="fw-600 mb-1" style="font-size:0.85rem;">👤 Your Name (optional)</label>
+    <input type="text" id="voterName" placeholder="e.g. Rahul Sharma" class="voter-input"/>
+  </div>
+
+  <button class="vote-btn" onclick="submitVote('${poll.id}')" id="submitVoteBtn">
+    🗳️ Submit My Vote for India
+  </button>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// SUBMIT VOTE
+// ═══════════════════════════════════════════════════════
+async function submitVote(pollId) {
+  const email = document.getElementById('voterEmail').value.trim().toLowerCase();
+  const name = document.getElementById('voterName')?.value.trim() || '';
+  const selected = document.querySelector('input[name="vote_opt"]:checked');
+
+  if (!email || !email.includes('@')) {
+    showToast('error', 'Please enter a valid email address.');
+    gsap.to('#voterEmail', { x: [-8,8,-6,6,-4,0], duration: 0.4 });
+    return;
+  }
+  if (!selected) {
+    showToast('error', 'Please select an option before voting.');
+    gsap.to('#optionsContainer', { x: [-8,8,-6,6,0], duration: 0.4 });
+    return;
+  }
+
+  const btn = document.getElementById('submitVoteBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Submitting...`;
+
+  // Check for blocked voter
+  const { data: blocked } = await sb.from('blocked_voters').select('id').eq('email', email).single();
+  if (blocked) {
+    showToast('error', 'Your account has been restricted from voting.');
+    btn.disabled = false; btn.innerHTML = '🗳️ Submit My Vote for India';
+    return;
+  }
+
+  const { error } = await sb.from('votes').insert({
+    poll_id: pollId,
+    option_id: selected.value,
+    voter_email: email,
+    voter_name: name || null,
+    user_agent: navigator.userAgent
+  });
+
+  if (error) {
+    if (error.code === '23505') {
+      showToast('info', 'You have already voted on this poll!');
+      votedPolls[pollId] = selected.value;
+      localStorage.setItem('aivm_voted', JSON.stringify(votedPolls));
+    } else {
+      showToast('error', 'Failed to submit vote. Please try again.');
+    }
+    btn.disabled = false; btn.innerHTML = '🗳️ Submit My Vote for India';
+    return;
+  }
+
+  // Success!
+  votedPolls[pollId] = selected.value;
+  localStorage.setItem('aivm_voted', JSON.stringify(votedPolls));
+
+  // Add to activity feed
+  addActivityItem(email, currentPoll.title);
+
+  // Reload poll data for fresh results
+  const { data: updatedPoll } = await sb.from('polls')
+    .select('*, poll_options(*)')
+    .eq('id', pollId).single();
+
+  if (updatedPoll) {
+    const idx = allPolls.findIndex(p => p.id === pollId);
+    if (idx !== -1) allPolls[idx] = updatedPoll;
+    currentPoll = updatedPoll;
+  }
+
+  // Show celebration
+  triggerConfetti();
+  showVoteSuccess(selected.value);
+}
+
+// ═══════════════════════════════════════════════════════
+// SHOW VOTE SUCCESS → RESULTS
+// ═══════════════════════════════════════════════════════
+async function showVoteSuccess(chosenOptionId) {
+  const body = document.getElementById('voteModalBody');
+  const chosenOpt = currentPoll.poll_options.find(o => o.id === chosenOptionId);
+  const total = (currentPoll.total_votes || 0) + 1;
+
+  body.innerHTML = `
+  <div class="vote-success">
+    <div class="vote-success-icon">🎉</div>
+    <div class="vote-success-title">Vote Cast Successfully!</div>
+    <div class="vote-success-sub">
+      You voted for <strong>${chosenOpt ? esc(chosenOpt.option_text) : 'your choice'}</strong><br/>
+      जय हिन्द! 🇮🇳
+    </div>
+  </div>
+  <hr/>
+  ${await buildResultsHTML(currentPoll, chosenOptionId)}`;
+
+  // Animate in
+  gsap.from('.vote-success', { scale: 0.8, opacity: 0, duration: 0.5, ease: 'back.out(1.7)' });
+  setTimeout(animateResultBars, 300);
+
+  // Update grid
+  renderPolls(currentCategory === 'all' ? allPolls : allPolls.filter(p => p.category === currentCategory));
+  updateStats();
+  loadLeaderboard();
+  showToast('success', '🗳️ Your vote has been counted!');
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD RESULTS HTML
+// ═══════════════════════════════════════════════════════
+async function buildResultsHTML(poll, chosenOptionId) {
+  // Fetch fresh option counts
+  const { data: opts } = await sb.from('poll_options')
+    .select('*').eq('poll_id', poll.id)
+    .order('vote_count', { ascending: false });
+
+  if (!opts) return '<p class="text-muted">Results unavailable.</p>';
+
+  const total = opts.reduce((s, o) => s + (o.vote_count || 0), 0);
+  const maxVotes = Math.max(...opts.map(o => o.vote_count || 0), 1);
+
+  let html = `
+  <div class="mb-3 p-2 rounded" style="background:rgba(19,136,8,0.06);border:1px solid rgba(19,136,8,0.15);">
+    <strong style="color:var(--green);">📊 Live Results</strong>
+    <span class="ms-2" style="font-size:0.82rem;color:var(--muted);">
+      Total: <strong>${fmtNum(total)}</strong> votes
+    </span>
+    <span class="live-dot ms-2"></span>
+  </div>`;
+
+  opts.forEach((opt, i) => {
+    const pct = total ? Math.round((opt.vote_count / total) * 100) : 0;
+    const isWinner = opt.vote_count === maxVotes && opt.vote_count > 0;
+    const isChosen = opt.id === chosenOptionId;
+    html += `
+    <div class="result-bar-wrap ${isWinner ? 'result-winner' : ''}">
+      <div class="result-bar-header">
+        <span>
+          ${isWinner ? '🥇 ' : ''}
+          ${isChosen ? '<strong style="color:var(--saffron)">' : ''}
+          ${esc(opt.option_text)}
+          ${isChosen ? ' ✓</strong>' : ''}
+        </span>
+        <span class="result-pct" data-pct="${pct}">${pct}%</span>
+      </div>
+      <div class="result-bar-track">
+        <div class="result-bar-fill" data-width="${pct}" style="background:${isWinner ? 'var(--gradient-saffron)' : 'linear-gradient(90deg,var(--green),#1BA30D)'}"></div>
+      </div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${fmtNum(opt.vote_count || 0)} votes</div>
+    </div>`;
+  });
+
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════
+// ANIMATE RESULT BARS
+// ═══════════════════════════════════════════════════════
+function animateResultBars() {
+  document.querySelectorAll('.result-bar-fill').forEach(bar => {
+    const target = parseFloat(bar.dataset.width || 0);
+    gsap.fromTo(bar, { width: '0%' }, {
+      width: target + '%', duration: 1.2,
+      ease: 'power2.out', delay: 0.1
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// CONFETTI
+// ═══════════════════════════════════════════════════════
+function triggerConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#FF6713', '#138808', '#FFD700', '#FFFFFF', '#000080', '#FF8C42'];
+  const particles = Array.from({ length: 120 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20,
+    r: Math.random() * 6 + 3,
+    d: Math.random() * 80 + 20,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    tilt: Math.random() * 10 - 10,
+    tiltAngle: 0,
+    tiltAngleInc: Math.random() * 0.07 + 0.05,
+    vy: Math.random() * 3 + 2,
+    vx: Math.random() * 2 - 1
+  }));
+
+  let angle = 0;
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    angle += 0.01;
+    frame++;
+    particles.forEach(p => {
+      p.tiltAngle += p.tiltAngleInc;
+      p.y += p.vy;
+      p.x += p.vx + Math.sin(angle);
+      p.tilt = Math.sin(p.tiltAngle) * 12;
+      ctx.beginPath();
+      ctx.lineWidth = p.r / 2;
+      ctx.strokeStyle = p.color;
+      ctx.moveTo(p.x + p.tilt + p.r / 4, p.y);
+      ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
+      ctx.stroke();
+    });
+    if (frame < 200) requestAnimationFrame(draw);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════
+// CATEGORY FILTER
+// ═══════════════════════════════════════════════════════
+function filterCategory(cat, btn) {
+  currentCategory = cat;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = cat === 'all' ? allPolls : allPolls.filter(p => p.category === cat);
+
+  // Animate out then in
+  gsap.to('#pollsGrid', {
+    opacity: 0, y: 10, duration: 0.2,
+    onComplete: () => {
+      renderPolls(filtered);
+      gsap.to('#pollsGrid', { opacity: 1, y: 0, duration: 0.3 });
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════════════
+async function loadLeaderboard() {
+  const { data } = await sb.from('polls')
+    .select('id, title, total_votes, category')
+    .eq('is_active', true)
+    .order('total_votes', { ascending: false })
+    .limit(8);
+
+  if (!data) return;
+  const el = document.getElementById('trendingList');
+  el.innerHTML = data.map((p, i) => `
+  <div class="lb-row" onclick="openVoteModal('${p.id}')" style="cursor:pointer">
+    <div class="lb-rank ${i < 3 ? 'rank-' + (i+1) : 'rank-n'}">${i+1}</div>
+    <div class="lb-title">${catEmoji(p.category)} ${esc(p.title)}</div>
+    <div class="lb-votes">${fmtNum(p.total_votes || 0)}</div>
+  </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// TOP VOTERS
+// ═══════════════════════════════════════════════════════
+async function loadTopVoters() {
+  const { data } = await sb.from('votes')
+    .select('voter_email, voter_name')
+    .eq('is_blocked', false);
+
+  if (!data) return;
+  const counts = {};
+  data.forEach(v => { counts[v.voter_email] = (counts[v.voter_email] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 8);
+
+  const el = document.getElementById('topVotersList');
+  el.innerHTML = sorted.map(([email, count], i) => {
+    const display = email.split('@')[0].slice(0,8) + '***';
+    return `
+    <div class="lb-row">
+      <div class="lb-rank ${i < 3 ? 'rank-' + (i+1) : 'rank-n'}">${i+1}</div>
+      <div class="lb-title">👤 ${display}</div>
+      <div class="lb-votes">${count} votes</div>
+    </div>`;
+  }).join('') || '<div class="p-3 text-center text-muted" style="font-size:0.82rem;">No voters yet</div>';
+}
+
+// ═══════════════════════════════════════════════════════
+// CATEGORY BREAKDOWN
+// ═══════════════════════════════════════════════════════
+function updateCategoryBreakdown() {
+  const el = document.getElementById('categoryBreakdown');
+  if (!allPolls.length) return;
+
+  const catVotes = {};
+  allPolls.forEach(p => {
+    catVotes[p.category] = (catVotes[p.category] || 0) + (p.total_votes || 0);
+  });
+  const total = Object.values(catVotes).reduce((s,v) => s+v, 0);
+
+  el.innerHTML = Object.entries(catVotes)
+    .sort((a,b) => b[1]-a[1])
+    .map(([cat, votes]) => {
+      const pct = total ? Math.round((votes/total)*100) : 0;
+      return `
+      <div class="mb-2">
+        <div class="d-flex justify-content-between mb-1" style="font-size:0.8rem;">
+          <span>${catEmoji(cat)} ${cat}</span>
+          <span class="fw-bold" style="color:var(--saffron)">${pct}%</span>
+        </div>
+        <div class="result-bar-track">
+          <div class="result-bar-fill" style="width:${pct}%;background:var(--gradient-saffron)"></div>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// ACTIVITY FEED
+// ═══════════════════════════════════════════════════════
+function addActivityItem(email, pollTitle) {
+  const feed = document.getElementById('activityFeed');
+  const display = email.split('@')[0].slice(0,6) + '*** voted';
+  const item = document.createElement('div');
+  item.style.cssText = 'padding:10px 16px;border-bottom:1px solid var(--border);font-size:0.8rem;opacity:0';
+  item.innerHTML = `<span class="live-dot me-2"></span><strong>${display}</strong><br/><span style="color:var(--muted)">${esc(pollTitle)}</span>`;
+  feed.prepend(item);
+  gsap.to(item, { opacity: 1, duration: 0.4 });
+  // Remove excess
+  const items = feed.querySelectorAll('div');
+  if (items.length > 15) items[items.length-1].remove();
+}
+
+// ═══════════════════════════════════════════════════════
+// REALTIME SUBSCRIPTIONS
+// ═══════════════════════════════════════════════════════
+function setupRealtime() {
+  sb.channel('realtime-votes')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes' }, payload => {
+      // Update local counts
+      const v = payload.new;
+      const poll = allPolls.find(p => p.id === v.poll_id);
+      if (poll) {
+        poll.total_votes = (poll.total_votes || 0) + 1;
+        const opt = poll.poll_options?.find(o => o.id === v.option_id);
+        if (opt) opt.vote_count = (opt.vote_count || 0) + 1;
+      }
+      updateStats();
+      loadLeaderboard();
+      updateCategoryBreakdown();
+
+      // Show in nav
+      const c = document.getElementById('navVoterCount');
+      if (c) { c.textContent = parseInt(c.textContent || 0) + 1; }
+
+      // Flash toast for others
+      if (!document.hidden) {
+        showToast('info', '🗳️ Someone just voted!', 1500);
+      }
+
+      // Update ticker
+      updateTicker();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, () => {
+      loadPolls();
+    })
+    .subscribe();
+}
+
+// ═══════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════
+function updateStats() {
+  const total = allPolls.reduce((s,p) => s + (p.total_votes||0), 0);
+  animateCounterTo('statPolls', allPolls.length);
+  animateCounterTo('statVotes', total);
+  animateCounterTo('statVoters', Math.round(total * 0.92));
+  document.getElementById('footerVotes').textContent = fmtNum(total);
+  document.getElementById('footerPolls').textContent = allPolls.length;
+  document.getElementById('heroTotalVotes').textContent = fmtNum(total);
+  document.getElementById('heroActivePolls').textContent = allPolls.length;
+}
+
+function updateHeroStats() {
+  const total = allPolls.reduce((s,p) => s + (p.total_votes||0), 0);
+  document.getElementById('navVoterCount').textContent = fmtNum(total);
+}
+
+function updateCategoryCounts() {
+  const counts = {};
+  allPolls.forEach(p => {
+    counts[p.category] = (counts[p.category] || 0) + 1;
+  });
+  const el = id => document.getElementById(id);
+  if (el('catCount-all')) el('catCount-all').textContent = allPolls.length;
+  if (el('catCount-politics')) el('catCount-politics').textContent = counts['Politics & Government'] || 0;
+  if (el('catCount-sports')) el('catCount-sports').textContent = counts['Sports & Cricket'] || 0;
+  if (el('catCount-ent')) el('catCount-ent').textContent = counts['Entertainment & Bollywood'] || 0;
+  if (el('catCount-social')) el('catCount-social').textContent = counts['Social Issues & Culture'] || 0;
+  if (el('catCount-general')) el('catCount-general').textContent = counts['General'] || 0;
+}
+
+function updateOnlineCounter() {
+  onlineCount += Math.floor(Math.random() * 40) - 20;
+  onlineCount = Math.max(150, Math.min(2000, onlineCount));
+  animateCounterTo('statOnline', onlineCount);
+}
+
+// ═══════════════════════════════════════════════════════
+// TICKER
+// ═══════════════════════════════════════════════════════
+function updateTicker() {
+  const top = [...allPolls]
+    .sort((a,b) => (b.total_votes||0) - (a.total_votes||0))
+    .slice(0,8);
+  document.getElementById('tickerContent').innerHTML =
+    top.map(p => `${catEmoji(p.category)} <strong>${esc(p.title)}</strong> — ${fmtNum(p.total_votes||0)} votes<span class="ticker-sep">•</span>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+let toastTimer;
+function showToast(type, msg, dur = 3000) {
+  const t = document.getElementById('toastMsg');
+  const icons = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', info: 'bi-info-circle-fill' };
+  t.querySelector('i').className = 'bi ' + (icons[type] || icons.info);
+  document.getElementById('toastText').textContent = msg;
+  t.className = `toast-aivm ${type}`;
+  clearTimeout(toastTimer);
+  t.style.transform = 'translateX(0)';
+  t.classList.add('show');
+  if (typeof gsap !== 'undefined') gsap.to(t, { x: 0, duration: 0.4, ease: 'back.out(1.7)' });
+  toastTimer = setTimeout(() => {
+    if (typeof gsap !== 'undefined') {
+      gsap.to(t, { x: '120%', duration: 0.3, onComplete: () => t.classList.remove('show') });
+    } else {
+      t.style.transform = 'translateX(120%)';
+      t.classList.remove('show');
+    }
+  }, dur);
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return (n||0).toString();
+}
+function animateCounterTo(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (typeof gsap === 'undefined') { el.textContent = fmtNum(target); return; }
+  const from = parseInt(el.textContent.replace(/[^0-9]/g,'')) || 0;
+  gsap.fromTo(el,
+    { textContent: from },
+    { textContent: target, duration: 1.2, ease: 'power2.out',
+      snap: { textContent: 1 },
+      onUpdate: function() { el.textContent = fmtNum(Math.round(this.targets()[0].textContent)); }
+    }
+  );
+}
+function catEmoji(cat) {
+  const map = {
+    'Politics & Government': '🏛️',
+    'Sports & Cricket': '🏏',
+    'Entertainment & Bollywood': '🎬',
+    'Social Issues & Culture': '👥',
+    'General': '🗳️'
+  };
+  return map[cat] || '🗳️';
+}
+function getCatClass(cat) {
+  const map = {
+    'Politics & Government': 'cat-politics',
+    'Sports & Cricket': 'cat-cricket',
+    'Entertainment & Bollywood': 'cat-bollywood',
+    'Social Issues & Culture': 'cat-social',
+    'General': 'cat-general'
+  };
+  return map[cat] || 'cat-general';
+}
+function scrollToPolls() {
+  document.getElementById('polls-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════════════════════
+// FIREBASE AUTH
+// ═══════════════════════════════════════════════════════
+let authModal = null;
+function openAuthModal() {
+  if (!authModal) authModal = new bootstrap.Modal(document.getElementById('authModal'));
+  authModal.show();
+}
+function switchAuthTab(tab, btn) {
+  document.querySelectorAll('.auth-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('auth-' + tab).classList.add('active');
+}
+async function signInGoogle() {
+  if (!window._fbSignInGoogle) { showToast('error', 'Auth not ready. Please wait.'); return; }
+  try {
+    await window._fbSignInGoogle();
+    if (authModal) authModal.hide();
+    showToast('success', '✅ Signed in with Google!');
+  } catch(e) { showToast('error', e.message || 'Google sign-in failed.'); }
+}
+async function signInEmail() {
+  const email = document.getElementById('authLoginEmail').value.trim();
+  const pass = document.getElementById('authLoginPass').value;
+  if (!email || !pass) { showToast('error', 'Enter email and password.'); return; }
+  try {
+    await window._fbSignInEmail(email, pass);
+    if (authModal) authModal.hide();
+    showToast('success', '✅ Signed in successfully!');
+  } catch(e) { showToast('error', e.message || 'Sign-in failed.'); }
+}
+async function signUpEmail() {
+  const email = document.getElementById('authSignupEmail').value.trim();
+  const pass = document.getElementById('authSignupPass').value;
+  if (!email || !pass) { showToast('error', 'Enter email and password.'); return; }
+  if (pass.length < 6) { showToast('error', 'Password must be at least 6 characters.'); return; }
+  try {
+    await window._fbSignUpEmail(email, pass);
+    if (authModal) authModal.hide();
+    showToast('success', '🎉 Account created! You are signed in.');
+  } catch(e) { showToast('error', e.message || 'Sign-up failed.'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
